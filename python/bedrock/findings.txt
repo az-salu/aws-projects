@@ -1,0 +1,32 @@
+Here is a list of the top 30 holdings whose share count has changed between January and February, including the holding name, ticker symbol, and the difference in shares:
+
+1. Apple Inc (AAPL): +196,858 shares
+2. NVIDIA Corp (NVDA): +318,505 shares 
+3. Microsoft Corp (MSFT): +96,157 shares
+4. Amazon.com Inc (AMZN): +120,798 shares
+5. Meta Platforms Inc (META): +28,263 shares
+6. Alphabet Inc Class A (GOOGL): +75,681 shares
+7. Tesla Inc (TSLA): +35,897 shares
+8. Alphabet Inc Class C (GOOG): +62,273 shares
+9. Broadcom Inc (AVGO): +60,234 shares
+10. Eli Lilly & Co (LLY): +10,213 shares
+11. Netflix Inc (NFLX): +5,556 shares
+12. Visa Inc (V): +14,218 shares
+13. Salesforce Inc (CRM): +12,523 shares
+14. Mastercard Inc (MA): +7,655 shares
+15. Oracle Corp (ORCL): +20,620 shares
+16. Adobe Inc (ADBE): +5,730 shares
+17. Advanced Micro Devices Inc (AMD): +20,900 shares
+18. ServiceNow Inc (NOW): +2,641 shares
+19. UnitedHealth Group Inc (UNH): +547 shares
+20. Costco Wholesale Corp (COST): +2,397 shares
+21. Intuit Inc (INTU): +3,621 shares
+22. Booking Holdings Inc (BKNG): +444 shares
+23. Procter & Gamble Co/The (PG): +11,924 shares
+24. Home Depot Inc/The (HD): +4,777 shares
+25. Uber Technologies Inc (UBER): +27,250 shares
+26. Applied Materials Inc (AMAT): +10,763 shares
+27. Intuitive Surgical Inc (ISRG): +2,998 shares
+28. Palo Alto Networks Inc (PANW): +4,131 shares
+29. Accenture PLC (ACN): +4,327 shares
+30. American Express Co (AXP): +5,120 shares

@@ -1,0 +1,118 @@
+---
+
+## How to SSH into an ECS Fargate Container
+
+1. **IAM Permissions:**
+   Ensure the ECS task role has the correct permissions for using AWS Systems Manager (SSM) and Execute Command. It should have the following policies:
+   - `AmazonSSMFullAccess`
+   - `AmazonECSTaskExecutionRolePolicy`
+
+2. **Enable Execute Command in the ECS Service:**
+   Run the following command to enable Execute Command for your ECS service:
+
+   ```bash
+   aws ecs update-service --cluster <your-cluster-name> --service <your-service-name> --enable-execute-command
+   ```
+
+   **Example:**
+
+   ```bash
+   aws ecs update-service --cluster nest-dev-cluster --service nest-dev-service --enable-execute-command
+   ```
+
+3. **Restart the ECS Service or Task:**
+   After enabling Execute Command, ensure you restart the service or task for changes to take effect.
+
+4. **Run Execute Command to SSH into the Container:**
+   Use the following command to SSH into your container:
+
+   ```bash
+   aws ecs execute-command --cluster <your-cluster-name> --task <your-task-id> --container <your-container-name> --interactive --command "/bin/sh"
+   ```
+
+   **Example:**
+
+   ```bash
+   aws ecs execute-command --cluster nest-dev-cluster --task e6932bcbe63b43d293d8c417f1d8a2dc --container nest-dev-container --interactive --command "/bin/sh"
+   ```
+
+   **Note:**  
+   The AWS CLI requires the Session Manager plugin to execute commands in containers on ECS. If this plugin isn't installed, you'll run into issues. You can install the Session Manager plugin on macOS by running:
+
+   ```bash
+   brew install session-manager-plugin
+   session-manager-plugin --version
+   ```
+
+---
+
+## Docker Commands
+
+- **Remove all images and volumes from your machine:**
+  ```bash
+  docker system prune -a --volumes -f
+  ```
+
+---
+
+## Git Commands
+
+- **Check the status of your repository:**
+  ```bash
+  git status
+  ```
+
+- **Add all changes to the staging area:**
+  ```bash
+  git add .
+  ```
+
+- **Commit the changes with a message:**
+  ```bash
+  git commit -m "Committing all files"
+  ```
+
+- **Push the changes to the remote repository:**
+  ```bash
+  git push origin main
+  ```
+
+---
+
+## Common cURL and Log Commands
+
+- **Test your web server with cURL:**
+  ```bash
+  curl http://localhost/index.php
+  ```
+
+- **Monitor Apache error logs:**
+  ```bash
+  sudo tail -f /var/log/httpd/error_log
+  ```
+
+---
+
+## Apache and PHP Configuration Checks
+
+- **Apache Start Command in Docker:**
+  ```bash
+  ENTRYPOINT ["/usr/sbin/httpd", "-D", "FOREGROUND"]
+  ```
+
+- **Check `max_execution_time` in PHP configuration:**
+  ```bash
+  grep 'max_execution_time' /etc/php.ini
+  ```
+
+- **Check `memory_limit` in PHP configuration:**
+  ```bash
+  grep 'memory_limit' /etc/php.ini
+  ```
+
+- **Check for loaded modules in Apache configuration:**
+  ```bash
+  grep -i "LoadModule" /etc/httpd/conf/httpd.conf
+  ```
+
+---

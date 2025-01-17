@@ -1,0 +1,2 @@
+# terraform-modules
+This GitHub repository stores Terraform modules that allow users to easily manage and provision AWS resources. These modules provide a pre-configured set of infrastructure-as-code templates that can be easily integrated into your Terraform workflow, allowing you to quickly and efficiently manage your AWS environment.
