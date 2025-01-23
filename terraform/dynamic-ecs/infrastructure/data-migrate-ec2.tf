@@ -1,3 +1,4 @@
+# create the ec2 instance that will be used to migrate sql data
 resource "aws_instance" "data_migrate_ec2" {
   ami                    = var.amazon_linux_ami_id
   instance_type          = var.ec2_instance_type

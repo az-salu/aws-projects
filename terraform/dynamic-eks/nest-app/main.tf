@@ -1,20 +1,18 @@
 locals {
   region            = "us-east-1"
-  project_name      = "shopwise"
+  project_name      = "nest"
   environment       = "dev"
-  project_directory = "shopwise-app"
-  domain_name       = "aosnotes77.com"
-  record_name       = "www"
+  project_directory = "nest-app"
 }
 
-module "shopwise-app" {
+module "nest-app" {
   source = "../infrastructure"
 
   # environment variables
-  region            = local.region
-  project_name      = local.project_name
-  environment       = local.environment
-  project_directory = local.project_directory
+  region            = "us-east-1"
+  project_name      = "nest"
+  environment       = "dev"
+  project_directory = "nest-app"
 
   # vpc variables
   vpc_cidr                     = "10.0.0.0/16"
@@ -34,25 +32,10 @@ module "shopwise-app" {
   database_instance_class      = "db.t3.micro"
   publicly_accessible          = "false"
 
-  # alb variables
-  health_check_path = "/index.php"
+  # eks variables
+  public_access_cidrs = ["72.83.211.170/32"]
 
-  # acm variables
-  domain_name       = local.domain_name
-  alternative_names = "*.aosnotes77.com"
-
-  # s3 variables
-  env_file_bucket_name = "aosnote-ecs-env-variables"
-
-  # ecs variables
-  architecture = "X86_64"
-  image_name   = "shopwise"
-  image_tag    = "latest"
-
-  # data migrate ec2 instance 
+  # data migrate ec2 instance variables
   amazon_linux_ami_id = "ami-051f7e7f6c2f40dc1"
   ec2_instance_type   = "t2.micro"
-
-  # route-53 variables
-  record_name = local.record_name
 }

@@ -26,7 +26,7 @@ module "nest-app" {
   private_data_subnet_az2_cidr = "10.0.5.0/24"
 
   # secrets manager variables
-  secrets_manager_secret_name = "app-secrets"
+  secret_name = "app-secrets"
 
   # rds variables
   multi_az_deployment          = "false"

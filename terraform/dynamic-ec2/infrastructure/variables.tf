@@ -56,7 +56,7 @@ variable "private_data_subnet_az2_cidr" {
 }
 
 # secrets manager variables
-variable "secrets_manager_secret_name" {
+variable "secret_name" {
   description = "the secrets manager secret name"
   type        = string
 }

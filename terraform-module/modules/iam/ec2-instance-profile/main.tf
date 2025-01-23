@@ -1,6 +1,6 @@
 # create iam role 
 resource "aws_iam_role" "s3_full_access_role" {
-  name = "S3FullAccessRole"
+  name = "${var.project_name}-${var.environment}-s3-full-access-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

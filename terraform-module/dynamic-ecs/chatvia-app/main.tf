@@ -4,7 +4,7 @@ locals {
   environment  = "dev"
 
   # secret_manager module
-  secrets_manager_secret_name = "app-secrets"
+  secret_name = "app-secrets"
 
   # rds module
   engine                       = "mysql"
@@ -84,7 +84,7 @@ module "eice" {
 # get secrets from secret manager
 module "secret_manager" {
   source                      = "../../modules/secret-manager"
-  secrets_manager_secret_name = local.secrets_manager_secret_name
+  secret_name = local.secret_name
 }
 
 # launch rds instance
