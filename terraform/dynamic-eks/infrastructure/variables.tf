@@ -69,7 +69,6 @@ variable "secret_name" {
 variable "secret_suffix" {
   type        = string
   description = "random suffix of the secret in aws secrets manager"
-  default     = "ATCH9v"
 }
 
 # rds variables
@@ -96,7 +95,12 @@ variable "publicly_accessible" {
 # eks variables
 variable "public_access_cidrs" {
   type        = list(string)
-  description = "Indicates the CIDR blocks allowed for public access."
+  description = "indicates the cidr blocks allowed for public access."
+}
+
+variable "admin_username" {
+  type        = string
+  description = "iam username for cluster admin"
 }
 
 # data migrate ec2 instance 

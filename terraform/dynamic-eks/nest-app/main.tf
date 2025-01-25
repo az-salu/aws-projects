@@ -1,4 +1,5 @@
 locals {
+  account_id        = "651783246143"
   region            = "us-east-1"
   project_name      = "nest"
   environment       = "dev"
@@ -9,10 +10,11 @@ module "nest-app" {
   source = "../infrastructure"
 
   # environment variables
-  region            = "us-east-1"
-  project_name      = "nest"
-  environment       = "dev"
-  project_directory = "nest-app"
+  account_id        = local.account_id
+  region            = local.region
+  project_name      = local.project_name
+  environment       = local.environment
+  project_directory = local.project_directory
 
   # vpc variables
   vpc_cidr                     = "10.0.0.0/16"
@@ -24,7 +26,8 @@ module "nest-app" {
   private_data_subnet_az2_cidr = "10.0.5.0/24"
 
   # secrets manager variables
-  secret_name = "app-secrets"
+  secret_name   = "app-secrets"
+  secret_suffix = "ATCH9v"
 
   # rds variables
   multi_az_deployment          = "false"
@@ -34,6 +37,7 @@ module "nest-app" {
 
   # eks variables
   public_access_cidrs = ["72.83.211.170/32"]
+  admin_username      = "azeez"
 
   # data migrate ec2 instance variables
   amazon_linux_ami_id = "ami-051f7e7f6c2f40dc1"
