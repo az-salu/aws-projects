@@ -22,32 +22,32 @@ output "environment" {
   value       = var.environment
 }
 
+# Output the EKS cluster name
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = aws_eks_cluster.eks_cluster.name
+}
+
 # Output the EKS cluster endpoint
-output "cluster_endpoint" {
+output "eks_cluster_endpoint" {
   description = "EKS cluster endpoint"
   value       = aws_eks_cluster.eks_cluster.endpoint
 }
 
 # Output the EKS cluster CA certificate
-output "cluster_ca_certificate" {
+output "eks_cluster_ca_certificate" {
   description = "EKS cluster CA certificate"
   value       = aws_eks_cluster.eks_cluster.certificate_authority[0].data
 }
 
-# Output the EKS cluster name
-output "cluster_name" {
-  description = "EKS cluster name"
-  value       = aws_eks_cluster.eks_cluster.name
-}
-
 # Output the EKS cluster OIDC issuer URL
-output "cluster_oidc_issuer_url" {
+output "eks_cluster_oidc_issuer_url" {
   description = "EKS cluster OIDC issuer URL"
   value       = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
 }
 
-# Output the service load balancer hostname
-output "service_load_balancer_hostname" {
-  description = "Service load balancer hostname"
-  value       = kubernetes_service.app_service.status.0.load_balancer.0.ingress.0.hostname
+# Output the ARN of the EKS Worker Node IAM Role
+output "eks_worker_node_role_arn" {
+  description = "ARN of the EKS Worker Node IAM Role"
+  value       = aws_iam_role.eks_worker_node_role.arn
 }

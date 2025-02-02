@@ -1,7 +1,7 @@
 # Create the Kubernetes service
 resource "kubernetes_service" "app_service" {
   metadata {
-    name      = "${var.project_name}-app"
+    name      = "${var.project_name}-eks-service"
     namespace = kubernetes_namespace.app_namespace.metadata[0].name  # Reference to the namespace
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"                              = "nlb"

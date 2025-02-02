@@ -20,18 +20,28 @@ variable "environment" {
 }
 
 # Config map variables
+variable "eks_worker_node_role_arn" {
+  description = "The ARN of the EKS Worker Node IAM Role"
+  type        = string
+}
 variable "admin_username" {
   type        = string
   description = "The IAM username for the cluster administrator"
 }
 
-# Secret provider variables
-variable "secret_name" {
-  description = "The name of the secret in AWS Secrets Manager"
-  type        = string
-}
+# # OIDC provider variables
+# variable "eks_cluster_oidc_issuer_url" {
+#   description = "The OIDC issuer URL for the EKS cluster"
+#   type        = string
+# }
 
-variable "secret_suffix" {
-  type        = string
-  description = "A random suffix for the secret in AWS Secrets Manager"
-}
+# # Secret provider variables
+# variable "secret_name" {
+#   description = "The name of the secret in AWS Secrets Manager"
+#   type        = string
+# }
+
+# variable "secret_suffix" {
+#   type        = string
+#   description = "A random suffix for the secret in AWS Secrets Manager"
+# }

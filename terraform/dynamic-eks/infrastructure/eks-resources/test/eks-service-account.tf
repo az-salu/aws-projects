@@ -14,7 +14,7 @@ resource "aws_iam_role" "service_account_role" {
         Condition = {
           StringEquals = {
             # Must match the service account namespace and name for IRSA to work
-            "${replace(aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${var.project_name}-${var.environment}-app:${var.project_name}-${var.environment}-eks-service-account"
+            "${replace(var.eks_cluster_oidc_issuer_url, "https://", "")}:sub" = "system:serviceaccount:${var.project_name}-${var.environment}-app:${var.project_name}-${var.environment}-eks-service-account"
           }
         }
       }

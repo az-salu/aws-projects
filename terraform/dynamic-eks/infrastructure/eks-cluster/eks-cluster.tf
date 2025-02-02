@@ -22,7 +22,7 @@ resource "aws_iam_role" "eks_cluster_role" {
 }
 
 # Create IAM role policies for EKS cluster management
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+resource "aws_iam_role_policy_attachment" "eks_AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.eks_cluster_role.name
 }
@@ -85,7 +85,6 @@ resource "aws_eks_cluster" "eks_cluster" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "vpc-cni"
-  addon_version     = "v1.12.6-eksbuild.1"
 }
 
 # Configure the CoreDNS addon for DNS resolution
@@ -93,7 +92,6 @@ resource "aws_eks_addon" "vpc_cni" {
 resource "aws_eks_addon" "coredns" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "coredns"
-  addon_version     = "v1.10.1-eksbuild.1"
 }
 
 # Configure the kube-proxy addon for network proxying
@@ -101,5 +99,4 @@ resource "aws_eks_addon" "coredns" {
 resource "aws_eks_addon" "kube_proxy" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "kube-proxy"
-  addon_version     = "v1.27.1-eksbuild.1"
 }

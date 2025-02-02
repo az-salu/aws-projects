@@ -1,4 +1,4 @@
-# configure aws provider to establish a secure connection between terraform and aws
+# Create a provider block for the AWS provider. This provider is used to interact with AWS resources.
 provider "aws" {
   region  = local.region
   profile = "cloud-projects"
@@ -12,27 +12,27 @@ provider "aws" {
   }
 }
 
-# configure kubernetes provider with eks cluster details
+# Create a Kubernetes provider. This provider is used to interact with Kubernetes resources in the EKS cluster.
 provider "kubernetes" {
-  host                   = module.nest-app.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.nest-app.cluster_ca_certificate)
-  
+  host                   = module.eks_cluster.eks_cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks_cluster.eks_cluster_ca_certificate)
+
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", module.nest-app.cluster_name]
+    args        = ["eks", "get-token", "--cluster-name", module.eks_cluster.eks_cluster_name]
     command     = "aws"
   }
 }
 
-# configure helm provider
+# Create a Helm provider. This provider is used to interact with Helm charts in the EKS cluster.
 provider "helm" {
   kubernetes {
-    host                   = module.nest-app.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.nest-app.cluster_ca_certificate)
-    
+    host                   = module.eks_cluster.eks_cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks_cluster.eks_cluster_ca_certificate)
+
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
-      args        = ["eks", "get-token", "--cluster-name", module.nest-app.cluster_name]
+      args        = ["eks", "get-token", "--cluster-name", module.eks_cluster.eks_cluster_name]
       command     = "aws"
     }
   }
