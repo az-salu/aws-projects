@@ -1,4 +1,4 @@
-# create a launch template
+# Create a Launch Template for EC2 instances
 resource "aws_launch_template" "app_server_launch_template" {
   name                   = "${var.project_name}-${var.environment}-launch-template"
   image_id               = var.amazon_linux_ami_id
@@ -23,12 +23,12 @@ resource "aws_launch_template" "app_server_launch_template" {
     RDS_DB_NAME     = local.secrets.db_name
     RDS_DB_USERNAME = local.secrets.username
     RDS_DB_PASSWORD = local.secrets.password
-    CAPTCHA_SITEKEY = local.secrets.captcha_sitekey # only applies to the chatvia nodejs app
-    CAPTCHA_SECRET  = local.secrets.captcha_secret  # only applies to the chatvia nodejs app
+    CAPTCHA_SITEKEY = local.secrets.captcha_sitekey # Only for the chatvia nodejs app
+    CAPTCHA_SECRET  = local.secrets.captcha_secret  # Only for the chatvia nodejs app
   }))
 }
 
-# create auto scaling group
+# Create an Auto Scaling Group
 resource "aws_autoscaling_group" "auto_scaling_group" {
   vpc_zone_identifier = [aws_subnet.private_app_subnet_az1.id, aws_subnet.private_app_subnet_az2.id]
   desired_capacity    = 1
@@ -56,7 +56,7 @@ resource "aws_autoscaling_group" "auto_scaling_group" {
   depends_on = [aws_instance.data_migrate_ec2]
 }
 
-# attach auto scaling group to alb target group
+# Attach the Auto Scaling Group to the ALB target group
 resource "aws_autoscaling_attachment" "asg_alb_target_group_attachment" {
   autoscaling_group_name = aws_autoscaling_group.auto_scaling_group.id
   lb_target_group_arn    = aws_lb_target_group.alb_target_group.arn
@@ -64,7 +64,7 @@ resource "aws_autoscaling_attachment" "asg_alb_target_group_attachment" {
   depends_on = [aws_autoscaling_group.auto_scaling_group]
 }
 
-# create an auto scaling group notification
+# Create an Auto Scaling Group notification
 resource "aws_autoscaling_notification" "webserver_asg_notifications" {
   group_names = [aws_autoscaling_group.auto_scaling_group.name]
 

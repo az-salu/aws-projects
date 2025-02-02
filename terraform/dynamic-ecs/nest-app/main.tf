@@ -35,6 +35,7 @@ module "nest-app" {
   publicly_accessible          = "false"
 
   # alb variables
+  target_type        = "ip"
   health_check_path = "/index.php"
 
   # acm variables

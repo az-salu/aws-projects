@@ -12,27 +12,27 @@ provider "aws" {
   }
 }
 
-# configure kubernetes provider with EKS cluster details
+# configure kubernetes provider with eks cluster details
 provider "kubernetes" {
-  host                   = aws_eks_cluster.eks_cluster.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.eks_cluster.certificate_authority[0].data)
+  host                   = module.nest-app.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.nest-app.cluster_ca_certificate)
   
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.eks_cluster.name]
+    args        = ["eks", "get-token", "--cluster-name", module.nest-app.cluster_name]
     command     = "aws"
   }
 }
 
-# configure helm provider (needed for csi driver installation)
+# configure helm provider
 provider "helm" {
   kubernetes {
-    host                   = aws_eks_cluster.eks_cluster.endpoint
-    cluster_ca_certificate = base64decode(aws_eks_cluster.eks_cluster.certificate_authority[0].data)
+    host                   = module.nest-app.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.nest-app.cluster_ca_certificate)
     
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
-      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.eks_cluster.name]
+      args        = ["eks", "get-token", "--cluster-name", module.nest-app.cluster_name]
       command     = "aws"
     }
   }

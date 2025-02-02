@@ -1,15 +1,15 @@
-# create database subnet group
+# Create a database subnet group
 resource "aws_db_subnet_group" "database_subnet_group" {
   name        = "${var.project_name}-${var.environment}-database-subnets"
   subnet_ids  = [aws_subnet.private_data_subnet_az1.id, aws_subnet.private_data_subnet_az2.id]
-  description = "subnets for database instance"
+  description = "Subnets for the RDS instance"
 
   tags = {
     Name = "${var.project_name}-${var.environment}-database-subnets"
   }
 }
 
-# create the rds instance
+# Create the RDS instance
 resource "aws_db_instance" "database_instance" {
   engine                 = "mysql"
   engine_version         = "8.0.39"

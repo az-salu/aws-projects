@@ -1,140 +1,145 @@
-# environment variables
+# Environment variables
 variable "region" {
-  description = "region to create resources"
+  description = "AWS region for resource creation"
   type        = string
 }
 
 variable "project_name" {
-  description = "project name"
+  description = "Name of the project"
   type        = string
 }
 
 variable "environment" {
-  description = "environment"
+  description = "Deployment environment (e.g., dev, prod)"
   type        = string
 }
 
 variable "project_directory" {
-  description = "the name of the directory the project is located"
+  description = "Directory name where the project is located"
   type        = string
 }
 
-# vpc variables
+# VPC variables
 variable "vpc_cidr" {
-  description = "vpc cidr block"
+  description = "CIDR block for the VPC"
   type        = string
 }
 
 variable "public_subnet_az1_cidr" {
-  description = "public subnet az1 cidr block"
+  description = "CIDR block for public subnet in AZ1"
   type        = string
 }
 
 variable "public_subnet_az2_cidr" {
-  description = "public subnet az2 cidr block"
+  description = "CIDR block for public subnet in AZ2"
   type        = string
 }
 
 variable "private_app_subnet_az1_cidr" {
-  description = "private app subnet az1 cidr block"
+  description = "CIDR block for private app subnet in AZ1"
   type        = string
 }
 
 variable "private_app_subnet_az2_cidr" {
-  description = "private app subnet az2 cidr block"
+  description = "CIDR block for private app subnet in AZ2"
   type        = string
 }
 
 variable "private_data_subnet_az1_cidr" {
-  description = "private data subnet az1 cidr block"
+  description = "CIDR block for private data subnet in AZ1"
   type        = string
 }
 
 variable "private_data_subnet_az2_cidr" {
-  description = "private data subnet az2 cidr block"
+  description = "CIDR block for private data subnet in AZ2"
   type        = string
 }
 
-# secrets manager variables
+# Secrets Manager variables
 variable "secret_name" {
-  description = "the secrets manager secret name"
+  description = "Name of the Secrets Manager secret"
   type        = string
 }
 
-# rds variables
+# RDS variables
 variable "multi_az_deployment" {
-  description = "create a standby db instance"
+  description = "Enable Multi-AZ deployment for RDS"
   type        = bool
 }
 
 variable "database_instance_identifier" {
-  description = "database instance identifier"
+  description = "Identifier for the RDS instance"
   type        = string
 }
 
 variable "database_instance_class" {
-  description = "database instance type"
+  description = "Instance type for the RDS instance"
   type        = string
 }
 
 variable "publicly_accessible" {
-  description = "controls if instance is publicly accessible"
+  description = "Whether the RDS instance is publicly accessible"
   type        = bool
 }
 
-# alb variables
+# ALB variables
+variable "target_type" {
+  description = "Type of target for ALB (e.g., ip, instance, lambda)"
+  type        = string
+}
+
 variable "health_check_path" {
-  description = "the alb target group health check path"
+  description = "Health check path for ALB target group"
   type        = string
   default     = "/"
 }
 
-# acm variables
+# ACM variables
 variable "domain_name" {
-  description = "domain name"
+  description = "Domain name for the certificate"
   type        = string
 }
 
 variable "alternative_names" {
-  description = "sub domain name"
+  description = "Alternative domain names for the certificate"
   type        = string
 }
 
-# s3 variables
+# S3 variables
 variable "env_file_bucket_name" {
-  description = "s3 bucket name"
+  description = "Name of the S3 bucket for environment files"
   type        = string
 }
 
-# ecs variables
+# ECS variables
 variable "architecture" {
-  description = "ecs cpu architecture"
+  description = "CPU architecture for ECS tasks"
   type        = string
 }
 
 variable "image_name" {
-  description = "the docker image name"
+  description = "Docker image name"
   type        = string
 }
 
 variable "image_tag" {
-  description = "the docker image tag"
+  description = "Docker image tag"
   type        = string
 }
 
-# data migrate ec2 instance 
+# Data migration EC2 instance variables
 variable "amazon_linux_ami_id" {
-  description = "default amazon linux ami"
+  description = "AMI ID for Amazon Linux"
   type        = string
 }
 
 variable "ec2_instance_type" {
-  description = "ec2 instance type"
+  description = "Instance type for EC2"
   type        = string
 }
 
-# route-53 variables
+# Route 53 variables
 variable "record_name" {
-  description = "sub domain name"
+  description = "Record name for Route 53"
   type        = string
 }

@@ -1,4 +1,4 @@
-# create application load balancer
+# Create the Application Load Balancer
 resource "aws_lb" "application_load_balancer" {
   name                       = "${var.project_name}-${var.environment}-alb"
   internal                   = false
@@ -12,10 +12,10 @@ resource "aws_lb" "application_load_balancer" {
   }
 }
 
-# create target group
+# Create the Target Group
 resource "aws_lb_target_group" "alb_target_group" {
   name        = "${var.project_name}-${var.environment}-tg"
-  target_type = "ip"
+  target_type = var.target_type
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.vpc.id
@@ -32,7 +32,7 @@ resource "aws_lb_target_group" "alb_target_group" {
   }
 }
 
-# create a listener on port 80 with redirect action
+# Create the HTTP Listener on port 80 with a redirect to HTTPS
 resource "aws_lb_listener" "alb_http_listener" {
   load_balancer_arn = aws_lb.application_load_balancer.arn
   port              = 80
@@ -49,7 +49,7 @@ resource "aws_lb_listener" "alb_http_listener" {
   }
 }
 
-# create a listener on port 443 with forward action
+# Create the HTTPS Listener on port 443 with a forward to the target group
 resource "aws_lb_listener" "alb_https_listener" {
   load_balancer_arn = aws_lb.application_load_balancer.arn
   port              = 443

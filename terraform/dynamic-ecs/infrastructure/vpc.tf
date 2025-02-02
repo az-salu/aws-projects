@@ -1,4 +1,4 @@
-# create vpc
+# Create the VPC
 resource "aws_vpc" "vpc" {
   cidr_block           = var.vpc_cidr
   instance_tenancy     = "default"
@@ -9,7 +9,7 @@ resource "aws_vpc" "vpc" {
   }
 }
 
-# create internet gateway and attach it to vpc
+# Create the Internet Gateway and attach it to the VPC
 resource "aws_internet_gateway" "internet_gateway" {
   vpc_id = aws_vpc.vpc.id
 
@@ -18,10 +18,10 @@ resource "aws_internet_gateway" "internet_gateway" {
   }
 }
 
-# use data source to get all avalablility zones in region
+# Retrieve all availability zones in the region
 data "aws_availability_zones" "available_zones" {}
 
-# create public subnet az1
+# Create the public subnet in the first availability zone
 resource "aws_subnet" "public_subnet_az1" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_az1_cidr
@@ -33,7 +33,7 @@ resource "aws_subnet" "public_subnet_az1" {
   }
 }
 
-# create public subnet az2
+# Create the public subnet in the second availability zone
 resource "aws_subnet" "public_subnet_az2" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.public_subnet_az2_cidr
@@ -45,7 +45,7 @@ resource "aws_subnet" "public_subnet_az2" {
   }
 }
 
-# create route table and add public route
+# Create the route table and add a public route
 resource "aws_route_table" "public_route_table" {
   vpc_id = aws_vpc.vpc.id
 
@@ -59,19 +59,19 @@ resource "aws_route_table" "public_route_table" {
   }
 }
 
-# associate public subnet az1 to "public route table"
+# Associate the public subnet in the first availability zone with the route table
 resource "aws_route_table_association" "public_subnet_az1_rt_association" {
   subnet_id      = aws_subnet.public_subnet_az1.id
   route_table_id = aws_route_table.public_route_table.id
 }
 
-# associate public subnet az2 to "public route table"
+# Associate the public subnet in the second availability zone with the route table
 resource "aws_route_table_association" "public_subnet_2_rt_association" {
   subnet_id      = aws_subnet.public_subnet_az2.id
   route_table_id = aws_route_table.public_route_table.id
 }
 
-# create private app subnet az1
+# Create the private application subnet in the first availability zone
 resource "aws_subnet" "private_app_subnet_az1" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.private_app_subnet_az1_cidr
@@ -83,7 +83,7 @@ resource "aws_subnet" "private_app_subnet_az1" {
   }
 }
 
-# create private app subnet az2
+# Create the private application subnet in the second availability zone
 resource "aws_subnet" "private_app_subnet_az2" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.private_app_subnet_az2_cidr
@@ -95,7 +95,7 @@ resource "aws_subnet" "private_app_subnet_az2" {
   }
 }
 
-# create private data subnet az1
+# Create the private data subnet in the first availability zone
 resource "aws_subnet" "private_data_subnet_az1" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.private_data_subnet_az1_cidr
@@ -107,7 +107,7 @@ resource "aws_subnet" "private_data_subnet_az1" {
   }
 }
 
-# create private data subnet az2
+# Create the private data subnet in the second availability zone
 resource "aws_subnet" "private_data_subnet_az2" {
   vpc_id                  = aws_vpc.vpc.id
   cidr_block              = var.private_data_subnet_az2_cidr

@@ -1,7 +1,7 @@
-# create security group for the ec2 instance connect endpoint
+# Create the Security Group for EC2 Instance Connect Endpoint
 resource "aws_security_group" "eice_security_group" {
   name        = "${var.project_name}-${var.environment}-eice-sg"
-  description = "enable outbound traffic on port 22 from the vpc cidr"
+  description = "Allow outbound SSH traffic on port 22 from the VPC CIDR"
   vpc_id      = aws_vpc.vpc.id
 
   egress {
@@ -16,14 +16,14 @@ resource "aws_security_group" "eice_security_group" {
   }
 }
 
-# create security group for the application load balancer
+# Create the Security Group for Application Load Balancer
 resource "aws_security_group" "alb_security_group" {
   name        = "${var.project_name}-${var.environment}-alb-sg"
-  description = "enable http/https access on port 80/443"
+  description = "Allow HTTP/HTTPS access on ports 80/443"
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
-    description = "http access"
+    description = "Allow HTTP access"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -31,7 +31,7 @@ resource "aws_security_group" "alb_security_group" {
   }
 
   ingress {
-    description = "https access"
+    description = "Allow HTTPS access"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -50,14 +50,14 @@ resource "aws_security_group" "alb_security_group" {
   }
 }
 
-# create security group for the app server
+# Create the Security Group for Application Server
 resource "aws_security_group" "app_server_security_group" {
   name        = "${var.project_name}-${var.environment}-app-server-sg"
-  description = "enable http/https access on port 80/443 via alb sg and ssh via eice sg"
+  description = "Allow HTTP/HTTPS access on ports 80/443 via ALB SG and SSH via EICE SG"
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
-    description     = "http access"
+    description     = "Allow HTTP access"
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
@@ -65,7 +65,7 @@ resource "aws_security_group" "app_server_security_group" {
   }
 
   ingress {
-    description     = "https access"
+    description     = "Allow HTTPS access"
     from_port       = 443
     to_port         = 443
     protocol        = "tcp"
@@ -73,7 +73,7 @@ resource "aws_security_group" "app_server_security_group" {
   }
 
   ingress {
-    description     = "ssh access"
+    description     = "Allow SSH access"
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
@@ -92,14 +92,14 @@ resource "aws_security_group" "app_server_security_group" {
   }
 }
 
-# create security group for the database
+# Create the Security Group for Database
 resource "aws_security_group" "database_security_group" {
   name        = "${var.project_name}-${var.environment}-database-sg"
-  description = "enable mysql/aurora access on port 3306"
+  description = "Allow MySQL/Aurora access on port 3306"
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
-    description     = "mysql/aurora access"
+    description     = "Allow MySQL/Aurora access"
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"

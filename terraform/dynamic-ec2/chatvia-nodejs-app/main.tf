@@ -34,6 +34,10 @@ module "chatvia-app" {
   database_instance_class      = "db.t3.micro"
   publicly_accessible          = "false"
 
+  # alb variables
+  target_type        = "instance"
+  health_check_path = "/index.php"
+
   # acm variables
   domain_name       = local.domain_name
   alternative_names = "*.aosnotes77.com"

@@ -1,9 +1,9 @@
-# get hosted zone details
+# Retrieve details of the hosted zone
 data "aws_route53_zone" "hosted_zone" {
   name = var.domain_name
 }
 
-# create a record set in route 53
+# Create a DNS record set in Route 53
 resource "aws_route53_record" "site_domain" {
   zone_id = data.aws_route53_zone.hosted_zone.zone_id
   name    = var.record_name

@@ -1,4 +1,4 @@
-# create ecs cluster
+# Create the ECS cluster
 resource "aws_ecs_cluster" "ecs_cluster" {
   name = "${var.project_name}-${var.environment}-cluster"
 
@@ -10,7 +10,7 @@ resource "aws_ecs_cluster" "ecs_cluster" {
   depends_on = [aws_instance.data_migrate_ec2]
 }
 
-# create cloudwatch log group
+# Create the CloudWatch log group
 resource "aws_cloudwatch_log_group" "log_group" {
   name = "/ecs/${var.project_name}-${var.environment}-td"
 
@@ -19,7 +19,7 @@ resource "aws_cloudwatch_log_group" "log_group" {
   }
 }
 
-# create task definition
+# Create the ECS task definition
 resource "aws_ecs_task_definition" "ecs_task_definition" {
   family                   = "${var.project_name}-${var.environment}-td"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -34,7 +34,7 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
     cpu_architecture        = var.architecture
   }
 
-  # create container definition
+  # Create the container configuration
   container_definitions = jsonencode([
     {
       name      = "${var.project_name}-${var.environment}-container"
@@ -67,7 +67,7 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
   ])
 }
 
-# create ecs service
+# Create the ECS service
 resource "aws_ecs_service" "ecs_service" {
   name                               = "${var.project_name}-${var.environment}-service"
   launch_type                        = "FARGATE"
@@ -78,18 +78,18 @@ resource "aws_ecs_service" "ecs_service" {
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
-  # task tagging configuration
+  # Configure task tagging
   enable_ecs_managed_tags = false
   propagate_tags          = "SERVICE"
 
-  # vpc and security groups
+  # Configure VPC and security groups
   network_configuration {
     subnets          = [aws_subnet.private_app_subnet_az1.id, aws_subnet.private_app_subnet_az2.id]
     security_groups  = [aws_security_group.app_server_security_group.id]
     assign_public_ip = false
   }
 
-  # load balancing
+  # Configure load balancing
   load_balancer {
     target_group_arn = aws_lb_target_group.alb_target_group.arn
     container_name   = "${var.project_name}-${var.environment}-container"

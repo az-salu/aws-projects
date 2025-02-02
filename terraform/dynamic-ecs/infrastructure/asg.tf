@@ -1,4 +1,4 @@
-# create an auto scaling group for the ecs service
+# Create an Auto Scaling Target for the ECS service
 resource "aws_appautoscaling_target" "ecs_asg" {
   max_capacity       = 2
   min_capacity       = 1
@@ -9,7 +9,7 @@ resource "aws_appautoscaling_target" "ecs_asg" {
   depends_on = [aws_ecs_service.ecs_service]
 }
 
-# create scaling policy for the auto scaling group
+# Create a scaling policy for the Auto Scaling Target
 resource "aws_appautoscaling_policy" "ecs_policy" {
   name               = "${var.project_name}-${var.environment}-policy"
   policy_type        = "TargetTrackingScaling"

@@ -1,4 +1,4 @@
-# create iam policy document. this policy allows the ecs service to assume a role
+# Define the IAM policy document to allow ECS tasks to assume a role
 data "aws_iam_policy_document" "ecs_task_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -12,19 +12,19 @@ data "aws_iam_policy_document" "ecs_task_assume_role_policy" {
   }
 }
 
-# create the ecs task role
+# Create the ECS task role
 resource "aws_iam_role" "ecs_task_role" {
   name               = "${var.project_name}-${var.environment}-ecs-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role_policy.json
 }
 
-# attach the AmazonSSMFullAccess policy
+# Attach the AmazonSSMFullAccess policy to the ECS task role
 resource "aws_iam_role_policy_attachment" "ecs_task_role_ssm_access" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMFullAccess"
 }
 
-# attach the AmazonECSTaskExecutionRolePolicy policy
+# Attach the AmazonECSTaskExecutionRolePolicy policy to the ECS task role
 resource "aws_iam_role_policy_attachment" "ecs_task_role_ecs_task_execution_policy" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"

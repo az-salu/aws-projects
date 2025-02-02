@@ -1,7 +1,7 @@
-# create security group for the ec2 instance connect endpoint
+# Create the Security Group for EC2 Instance Connect Endpoint
 resource "aws_security_group" "eice_security_group" {
   name        = "${var.project_name}-${var.environment}-eice-sg"
-  description = "enable outbound traffic on port 22 from the vpc cidr"
+  description = "Allow outbound SSH traffic on port 22 from the VPC CIDR"
   vpc_id      = aws_vpc.vpc.id
 
   egress {
@@ -16,14 +16,14 @@ resource "aws_security_group" "eice_security_group" {
   }
 }
 
-# create security group for the data migrate server
+# Create the Security Group for Data Migration Server
 resource "aws_security_group" "data_migrate_server_security_group" {
   name        = "${var.project_name}-${var.environment}-data-migrate-server-sg"
-  description = "enable ssh access on port 22 via eice sg"
+  description = "Allow SSH access on port 22 via EICE security group"
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
-    description     = "ssh access"
+    description     = "SSH access"
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
@@ -42,14 +42,14 @@ resource "aws_security_group" "data_migrate_server_security_group" {
   }
 }
 
-# create security group for the database.
+# Create the Security Group for Database
 resource "aws_security_group" "database_security_group" {
   name        = "${var.project_name}-${var.environment}-database-sg"
-  description = "enable mysql/aurora access on port 3306"
+  description = "Allow MySQL/Aurora access on port 3306"
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
-    description     = "mysql/aurora access"
+    description     = "Allow MySQL/Aurora access"
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
@@ -57,7 +57,7 @@ resource "aws_security_group" "database_security_group" {
   }
 
   ingress {
-    description     = "mysql/aurora access"
+    description     = "MySQL/Aurora access"
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
