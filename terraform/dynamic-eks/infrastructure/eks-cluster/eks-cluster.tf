@@ -85,6 +85,7 @@ resource "aws_eks_cluster" "eks_cluster" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "vpc-cni"
+  # addon_version     = "v1.7.5-eksbuild.1"
 }
 
 # Configure the CoreDNS addon for DNS resolution
@@ -92,6 +93,7 @@ resource "aws_eks_addon" "vpc_cni" {
 resource "aws_eks_addon" "coredns" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "coredns"
+  # addon_version     = "v1.8.3-eksbuild.1"
 }
 
 # Configure the kube-proxy addon for network proxying
@@ -99,4 +101,5 @@ resource "aws_eks_addon" "coredns" {
 resource "aws_eks_addon" "kube_proxy" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "kube-proxy"
+  # addon_version     = "v1.8.3-eksbuild.1"
 }
