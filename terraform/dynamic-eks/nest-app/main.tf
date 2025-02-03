@@ -9,7 +9,7 @@ locals {
   secret_suffix     = "ATCH9v"
 }
 
-# Create an EKS cluster
+# Create an EKS cluster and Worker Nodes
 module "eks_cluster" {
   source = "../infrastructure/eks-cluster"
 
@@ -47,26 +47,6 @@ module "eks_cluster" {
   ec2_instance_type   = "t2.micro"
 }
 
-# Output the EKS cluster name
-output "eks_cluster_name" {
-  value = module.eks_cluster.eks_cluster_name
-}
-
-# Output the EKS cluster endpoint
-output "eks_cluster_endpoint" {
-  value = module.eks_cluster.eks_cluster_endpoint
-}
-
-# Output the EKS cluster CA certificate
-output "eks_cluster_ca_certificate" {
-  value = module.eks_cluster.eks_cluster_ca_certificate 
-}
-
-# Output the OIDC issuer URL for the EKS cluster
-output "eks_cluster_oidc_issuer_url" {
-  value = module.eks_cluster.eks_cluster_oidc_issuer_url
-}
-
 # Create Kubernetes resources in the EKS cluster
 module "eks_resources" {
   source = "../infrastructure/eks-resources"
@@ -93,3 +73,24 @@ module "eks_resources" {
   # secret_name   = local.secret_name
   # secret_suffix = local.secret_suffix
 }
+
+
+# # Output the EKS cluster name
+# output "eks_cluster_name" {
+#   value = module.eks_cluster.eks_cluster_name
+# }
+
+# # Output the EKS cluster endpoint
+# output "eks_cluster_endpoint" {
+#   value = module.eks_cluster.eks_cluster_endpoint
+# }
+
+# # Output the EKS cluster CA certificate
+# output "eks_cluster_ca_certificate" {
+#   value = module.eks_cluster.eks_cluster_ca_certificate 
+# }
+
+# # Output the OIDC issuer URL for the EKS cluster
+# output "eks_cluster_oidc_issuer_url" {
+#   value = module.eks_cluster.eks_cluster_oidc_issuer_url
+# }

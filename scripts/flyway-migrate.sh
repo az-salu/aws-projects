@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# Enable debugging mode: Print each command and its arguments as they are executed
-set -x
-
 # Define environment variables
-export S3_URI=s3://aosnote-sql-files/V1__nest.sql
+export S3_URI=s3://aosnote-rentzone-sql-files/V1__rentzone-db.sql
+export RDS_ENDPOINT=dev-rds-db.cu2idoemakwo.us-east-1.rds.amazonaws.com
+export RDS_DB_NAME=applicationdb
+export RDS_DB_USERNAME=azeezs
+export RDS_DB_PASSWORD=azeezs123
 
 # Update all packages
 sudo yum update -y
@@ -19,11 +20,8 @@ sudo mkdir sql
 sudo aws s3 cp "$S3_URI" sql/
 
 # Run Flyway migration
-sudo flyway -url=jdbc:mysql://"${RDS_ENDPOINT}"/"${RDS_DB_NAME}"?allowPublicKeyRetrieval=true \
-  -user="${RDS_DB_USERNAME}" \
-  -password="${RDS_DB_PASSWORD}" \
+sudo flyway -url=jdbc:mysql://"$RDS_ENDPOINT":3306/"$RDS_DB_NAME"?allowPublicKeyRetrieval=true \
+  -user="$RDS_DB_USERNAME" \
+  -password="$RDS_DB_PASSWORD" \
   -locations=filesystem:sql \
   migrate
-
-# Then shutdown after waiting 7 minutes
-sudo shutdown -h +7

@@ -1,7 +1,7 @@
 # Create aws-auth ConfigMap to grant IAM user/role access to the EKS cluster
 resource "kubernetes_config_map" "aws_auth" {
   metadata {
-    name      = "aws-auth"
+    name      = "aws-auth"     # Must be aws-auth
     namespace = "kube-system"  # Must be in the kube-system namespace
   }
 

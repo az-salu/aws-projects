@@ -20,13 +20,14 @@ variable "environment" {
 }
 
 # Config map variables
-variable "eks_worker_node_role_arn" {
-  description = "The ARN of the EKS Worker Node IAM Role"
-  type        = string
-}
 variable "admin_username" {
   type        = string
   description = "The IAM username for the cluster administrator"
+}
+
+variable "eks_worker_node_role_arn" {
+  description = "The ARN of the EKS Worker Node IAM Role"
+  type        = string
 }
 
 # # OIDC provider variables
