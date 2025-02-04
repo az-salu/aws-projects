@@ -1,7 +1,7 @@
 # Define variables
 $CLUSTER_NAME = "nest-dev-eks-cluster"
 $SECRET_MANAGER_ACCESS_POLICY_NAME = "secrets-manager-access-policy"
-$NAMESPACE = "nest-app"
+$NAMESPACE = "nest-app-namespace"
 $REGION = "us-east-1"
 $AWS_ACCOUNT_ID = "651783246143"
 $SERVICE_ACCOUNT_NAME = "nest-app-service-account"

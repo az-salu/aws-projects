@@ -93,6 +93,11 @@ variable "publicly_accessible" {
 }
 
 # EKS variables
+variable "eks_cluster_version" {
+  description = "Version of the EKS cluster"
+  type        = string
+}
+
 variable "public_access_cidrs" {
   description = "CIDR blocks allowed for public access to EKS"
   type        = list(string)

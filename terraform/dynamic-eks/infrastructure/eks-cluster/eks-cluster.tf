@@ -6,7 +6,9 @@ resource "aws_iam_role" "eks_cluster_role" {
     Version = "2012-10-17",
     Statement = [
       {
-        Action = "sts:AssumeRole",
+        Action = ["sts:AssumeRole",
+                  "sts:TagSession"
+                ],
         Effect = "Allow",
         Principal = {
           Service = "eks.amazonaws.com"
@@ -37,10 +39,31 @@ resource "aws_iam_role_policy_attachment" "eks_AmazonEKSVPCResourceController" {
   role       = aws_iam_role.eks_cluster_role.name
 }
 
+resource "aws_iam_role_policy_attachment" "eks_AmazonEKSBlockStoragePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSBlockStoragePolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
+
+resource "aws_iam_role_policy_attachment" "eks_AmazonEKSComputePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSComputePolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_AmazonEKSLoadBalancingPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSLoadBalancingPolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_AmazonEKSNetworkingPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSNetworkingPolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
 # Create the EKS cluster
 resource "aws_eks_cluster" "eks_cluster" {
   name = "${var.project_name}-${var.environment}-eks-cluster"
-
+  version = var.eks_cluster_version
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
@@ -70,6 +93,10 @@ resource "aws_eks_cluster" "eks_cluster" {
     aws_iam_role_policy_attachment.eks_AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.eks_AmazonEKSServicePolicy,
     aws_iam_role_policy_attachment.eks_AmazonEKSVPCResourceController,
+    aws_iam_role_policy_attachment.eks_AmazonEKSBlockStoragePolicy,
+    aws_iam_role_policy_attachment.eks_AmazonEKSComputePolicy,
+    aws_iam_role_policy_attachment.eks_AmazonEKSLoadBalancingPolicy,
+    aws_iam_role_policy_attachment.eks_AmazonEKSNetworkingPolicy,
     aws_cloudwatch_log_group.eks_cluster
   ]
 
@@ -80,12 +107,20 @@ resource "aws_eks_cluster" "eks_cluster" {
   }
 }
 
+# Configure the kube-proxy addon for network proxying
+# This addon maintains network rules on each node for container communication
+resource "aws_eks_addon" "kube_proxy" {
+  cluster_name      = aws_eks_cluster.eks_cluster.name
+  addon_name        = "kube-proxy"
+  addon_version     = "v1.31.2-eksbuild.3"
+}
+
 # Configure the VPC CNI addon for networking
 # This addon enables pod networking within the EKS cluster
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "vpc-cni"
-  # addon_version     = "v1.7.5-eksbuild.1"
+  addon_version     = "v1.19.0-eksbuild.1"
 }
 
 # Configure the CoreDNS addon for DNS resolution
@@ -93,13 +128,5 @@ resource "aws_eks_addon" "vpc_cni" {
 resource "aws_eks_addon" "coredns" {
   cluster_name      = aws_eks_cluster.eks_cluster.name
   addon_name        = "coredns"
-  # addon_version     = "v1.8.3-eksbuild.1"
-}
-
-# Configure the kube-proxy addon for network proxying
-# This addon maintains network rules on each node for container communication
-resource "aws_eks_addon" "kube_proxy" {
-  cluster_name      = aws_eks_cluster.eks_cluster.name
-  addon_name        = "kube-proxy"
-  # addon_version     = "v1.8.3-eksbuild.1"
+  addon_version     = "v1.11.3-eksbuild.1"
 }
