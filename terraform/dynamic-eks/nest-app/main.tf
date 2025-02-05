@@ -48,32 +48,45 @@ module "eks_cluster" {
   ec2_instance_type   = "t2.micro"
 }
 
-# # Create Kubernetes resources in the EKS cluster
-# module "eks_resources" {
-#   source = "../infrastructure/eks-resources"
+# Create Kubernetes resources in the EKS cluster
+module "eks_resources" {
+  source = "../infrastructure/eks-resources"
 
-#   providers = {
-#     kubernetes = kubernetes
-#     helm       = helm
-#   }
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
 
-#   # Environment variables
-#   account_id   = local.account_id
-#   region       = local.region
-#   project_name = local.project_name
-#   environment  = local.environment
+  # Environment variables
+  account_id   = local.account_id
+  region       = local.region
+  project_name = local.project_name
+  environment  = local.environment
 
-#   # Config map configuration
-#   eks_worker_node_role_arn = module.eks_cluster.eks_worker_node_role_arn
-#   admin_username = "azeez"
+  # Config map configuration
+  eks_worker_node_role_arn = module.eks_cluster.eks_worker_node_role_arn
+  admin_username = "azeez"
 
-#   # # OIDC provider configuration
-#   # eks_cluster_oidc_issuer_url = module.eks_cluster.eks_cluster_oidc_issuer_url
+  # Helm chart configuration
+  csi_driver_version = "1.4.8"
 
-#   # # Secret provider configuration
-#   # secret_name   = local.secret_name
-#   # secret_suffix = local.secret_suffix
-# }
+  # OIDC provider configuration
+  eks_cluster_oidc_issuer_url = module.eks_cluster.eks_cluster_oidc_issuer_url
+
+  # # Secret provider configuration
+  # secret_name   = local.secret_name
+  # secret_suffix = local.secret_suffix
+}
+
+
+
+
+
+
+
+
+
+
 
 
 # # Output the EKS cluster name

@@ -1,11 +1,3 @@
-# Define the version for the CSI driver
-# This can be updated when new versions are released
-variable "csi_driver_version" {
-  description = "Version of the secrets-store-csi-driver to install"
-  type        = string
-  default     = "1.4.8"
-}
-
 # Define a local variable to detect the operating system
 # This checks if the expanded home directory starts with "C", 
 # which is common in Windows. It's a heuristic and may not work in all cases.
