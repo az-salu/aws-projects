@@ -2,7 +2,7 @@
 terraform {
   backend "s3" {
     bucket         = "aosnote-terraform-remote-state"
-    key            = "nest-eks/terraform.tfstate"
+    key            = "nest-app/eks-cluster/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "terraform-state-lock"
   }

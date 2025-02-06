@@ -3,9 +3,6 @@
 # Enable debugging mode: Print each command and its arguments as they are executed
 set -x
 
-# Define environment variables
-export S3_URI=s3://aosnote-sql-files/V1__nest.sql
-
 # Update all packages
 sudo yum update -y
 

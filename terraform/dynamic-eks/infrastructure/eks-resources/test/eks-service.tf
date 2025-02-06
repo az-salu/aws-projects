@@ -2,7 +2,7 @@
 resource "kubernetes_service" "app_service" {
   metadata {
     name      = "${var.project_name}-eks-service"
-    namespace = kubernetes_namespace.app_namespace.metadata[0].name  # Reference to the namespace
+    namespace = kubernetes_namespace.app_namespace.metadata[0].name # Reference to the namespace
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"                              = "nlb"
       "service.beta.kubernetes.io/aws-load-balancer-internal"                          = "false"
@@ -20,11 +20,11 @@ resource "kubernetes_service" "app_service" {
       protocol    = "TCP"
     }
     selector = {
-      app = "${var.project_name}-${var.environment}-eks-app"  # Must match the deployment labels
+      app = "${var.project_name}-${var.environment}-eks-app" # Must match the deployment labels
 
-    health_check_grace_period_seconds = 300
-    session_affinity = "ClientIP"
-    external_traffic_policy = "Local"
+      health_check_grace_period_seconds = 300
+      session_affinity                  = "ClientIP"
+      external_traffic_policy           = "Local"
     }
   }
 

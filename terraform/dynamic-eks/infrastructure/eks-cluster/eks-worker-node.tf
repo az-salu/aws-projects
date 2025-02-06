@@ -46,10 +46,10 @@ resource "aws_launch_template" "eks_node_template" {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size = 20
-      volume_type = "gp3"
+      volume_size           = 20
+      volume_type           = "gp3"
       delete_on_termination = true
-      encrypted            = true
+      encrypted             = true
     }
   }
 

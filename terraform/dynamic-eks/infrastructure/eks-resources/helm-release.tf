@@ -38,7 +38,7 @@ resource "null_resource" "download_chart" {
   provisioner "local-exec" {
     interpreter = local.is_windows ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     command     = local.is_windows ? local.windows_command : local.linux_command
-    
+
     # Set working directory to ensure charts are created in the right place
     working_dir = path.root
   }
@@ -52,8 +52,8 @@ resource "helm_release" "secrets_store_csi_driver" {
   chart            = "${path.root}/charts/secrets-store-csi-driver-${var.csi_driver_version}.tgz"
   namespace        = "kube-system"
   create_namespace = true
-  force_update     = true      # Forces resource update through delete/recreate if needed
-  cleanup_on_fail  = true      # Cleanup any created resources if the install fails
+  force_update     = true # Forces resource update through delete/recreate if needed
+  cleanup_on_fail  = true # Cleanup any created resources if the install fails
 
   # Ensure chart is downloaded before attempting installation
   depends_on = [
@@ -71,6 +71,18 @@ resource "helm_release" "secrets_store_csi_driver" {
   # This ensures secrets are automatically updated when they change in the provider
   set {
     name  = "enableSecretRotation"
-    value = "true"
+    value = "false"
   }
+}
+
+# AWS provider for Secrets Store CSI Driver
+resource "helm_release" "secrets_store_csi_driver_provider_aws" {
+  name       = "${var.project_name}-${var.environment}-eks-csi-aws-provider"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "csi-secrets-store-provider-aws" # Don't change this
+  namespace  = "kube-system"
+
+  depends_on = [
+    helm_release.secrets_store_csi_driver
+  ]
 }

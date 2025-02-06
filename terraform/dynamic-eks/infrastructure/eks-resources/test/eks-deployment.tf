@@ -2,9 +2,9 @@
 resource "kubernetes_deployment" "app_deployment" {
   metadata {
     name      = "${var.project_name}-${var.environment}-eks-deployment"
-    namespace = kubernetes_namespace.app_namespace.metadata[0].name  # Reference to the namespace
+    namespace = kubernetes_namespace.app_namespace.metadata[0].name # Reference to the namespace
     labels = {
-      app = "${var.project_name}-${var.environment}-eks-app"  # Must match the service selector
+      app = "${var.project_name}-${var.environment}-eks-app" # Must match the service selector
     }
   }
 
@@ -21,19 +21,19 @@ resource "kubernetes_deployment" "app_deployment" {
 
     selector {
       match_labels = {
-        app = "${var.project_name}-${var.environment}-eks-app"  # Must match template labels and service selector
+        app = "${var.project_name}-${var.environment}-eks-app" # Must match template labels and service selector
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "${var.project_name}-${var.environment}-eks-app"  # Must match selector match_labels
+          app = "${var.project_name}-${var.environment}-eks-app" # Must match selector match_labels
         }
       }
 
       spec {
-        service_account_name = kubernetes_service_account.app_service_account.metadata[0].name  # Reference to the service account
+        service_account_name = kubernetes_service_account.app_service_account.metadata[0].name # Reference to the service account
 
         affinity {
           pod_anti_affinity {
@@ -44,7 +44,7 @@ resource "kubernetes_deployment" "app_deployment" {
                   match_expressions {
                     key      = "app"
                     operator = "In"
-                    values   = ["${var.project_name}-${var.environment}-eks-app"]  # Must match selector match_labels
+                    values   = ["${var.project_name}-${var.environment}-eks-app"] # Must match selector match_labels
                   }
                 }
                 topology_key = "kubernetes.io/hostname"
@@ -59,7 +59,7 @@ resource "kubernetes_deployment" "app_deployment" {
 
           port {
             container_port = 80
-            protocol      = "TCP"
+            protocol       = "TCP"
           }
 
           resources {
@@ -79,9 +79,9 @@ resource "kubernetes_deployment" "app_deployment" {
               port = 80
             }
             initial_delay_seconds = 30
-            period_seconds       = 10
-            timeout_seconds      = 5
-            failure_threshold    = 3
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 3
           }
 
           readiness_probe {
@@ -90,9 +90,9 @@ resource "kubernetes_deployment" "app_deployment" {
               port = 80
             }
             initial_delay_seconds = 5
-            period_seconds       = 10
-            timeout_seconds      = 5
-            failure_threshold    = 3
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 3
           }
           startup_probe {
             http_get {
@@ -100,24 +100,24 @@ resource "kubernetes_deployment" "app_deployment" {
               port = 80
             }
             initial_delay_seconds = 10
-            period_seconds       = 10
-            failure_threshold    = 30
+            period_seconds        = 10
+            failure_threshold     = 30
           }
 
           volume_mount {
-            name       = "secrets-store-inline"  # Must match volume name
+            name       = "secrets-store-inline" # Must match volume name
             mount_path = "/mnt/secrets-store"
             read_only  = true
           }
         }
 
         volume {
-          name = "secrets-store-inline"  # Must match volume_mount name
+          name = "secrets-store-inline" # Must match volume_mount name
           csi {
             driver    = "secrets-store.csi.k8s.io"
             read_only = true
             volume_attributes = {
-              secretProviderClass = "${var.project_name}-${var.environment}-eks-secretsmanager"  # Must match SecretProviderClass name
+              secretProviderClass = "${var.project_name}-${var.environment}-eks-secretsmanager" # Must match SecretProviderClass name
             }
           }
         }

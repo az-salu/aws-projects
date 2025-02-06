@@ -9,7 +9,7 @@ resource "aws_iam_role" "service_account_role" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.eks.arn  # Reference to OIDC provider
+          Federated = aws_iam_openid_connect_provider.eks.arn # Reference to OIDC provider
         }
         Condition = {
           StringEquals = {
@@ -31,7 +31,7 @@ data "aws_iam_policy_document" "secrets_policy" {
       "secretsmanager:DescribeSecret"
     ]
     resources = [
-      "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.secret_name}-${var.secret_suffix}"  # Must match SecretProviderClass objectName
+      "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.secret_name}-${var.secret_suffix}" # Must match SecretProviderClass objectName
     ]
   }
 }
@@ -40,22 +40,22 @@ data "aws_iam_policy_document" "secrets_policy" {
 resource "aws_iam_policy" "secrets_policy" {
   name        = "${var.project_name}-${var.environment}-eks-secrets-policy"
   description = "Policy for accessing Secrets Manager"
-  policy      = data.aws_iam_policy_document.secrets_policy.json 
+  policy      = data.aws_iam_policy_document.secrets_policy.json
 }
 
 # Attach the policy to the role
 resource "aws_iam_role_policy_attachment" "secrets_policy_attachment" {
-  role       = aws_iam_role.service_account_role.name  
-  policy_arn = aws_iam_policy.secrets_policy.arn      
+  role       = aws_iam_role.service_account_role.name
+  policy_arn = aws_iam_policy.secrets_policy.arn
 }
 
 # Create the Kubernetes service account
 resource "kubernetes_service_account" "app_service_account" {
   metadata {
-    name      = "${var.project_name}-${var.environment}-eks-service-account"  # Must match role assumption policy and deployment serviceAccountName
-    namespace = kubernetes_namespace.app_namespace.metadata[0].name           # Reference to namespace
+    name      = "${var.project_name}-${var.environment}-eks-service-account" # Must match role assumption policy and deployment serviceAccountName
+    namespace = kubernetes_namespace.app_namespace.metadata[0].name          # Reference to namespace
     annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.service_account_role.arn  
+      "eks.amazonaws.com/role-arn" = aws_iam_role.service_account_role.arn
     }
   }
   depends_on = [kubernetes_namespace.app_namespace]

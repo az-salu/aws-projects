@@ -11,7 +11,7 @@ resource "kubernetes_manifest" "aws_provider" {
       provider = "aws"
       parameters = {
         objects = jsonencode([{
-          objectName  = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.secret_name}-${var.secret_suffix}"  # Must match secret ARN in secrets_policy
+          objectName  = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.secret_name}-${var.secret_suffix}" # Must match secret ARN in secrets_policy
           objectAlias = "${var.project_name}-${var.environment}-eks-secrets"
         }])
       }
@@ -19,8 +19,7 @@ resource "kubernetes_manifest" "aws_provider" {
   }
   depends_on = [
     kubernetes_namespace.app_namespace,
-    helm_release.secrets_store_csi_driver,  # Ensure CSI driver is installed
-    data.aws_eks_cluster.cluster,           # Ensure cluster data is available
-    data.aws_eks_cluster_auth.cluster       # Ensure cluster authentication
+    helm_release.secrets_store_csi_driver,             # Ensure CSI driver is installed
+    helm_release.secrets_store_csi_driver_provider_aws # Ensure AWS provider is installed
   ]
 }

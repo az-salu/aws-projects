@@ -43,13 +43,13 @@ variable "eks_cluster_oidc_issuer_url" {
   type        = string
 }
 
-# # Secret provider variables
-# variable "secret_name" {
-#   description = "The name of the secret in AWS Secrets Manager"
-#   type        = string
-# }
+# Secret provider variables
+variable "secret_name" {
+  description = "The name of the secret in AWS Secrets Manager"
+  type        = string
+}
 
-# variable "secret_suffix" {
-#   type        = string
-#   description = "A random suffix for the secret in AWS Secrets Manager"
-# }
+variable "secret_suffix" {
+  type        = string
+  description = "A random suffix for the secret in AWS Secrets Manager"
+}
