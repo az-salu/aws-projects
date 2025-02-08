@@ -14,7 +14,10 @@ resource "aws_iam_role" "service_account_role" {
         Condition = {
           StringEquals = {
             # Must match the service account namespace and name for IRSA to work
-            "${replace(var.eks_cluster_oidc_issuer_url, "https://", "")}:sub" = "system:serviceaccount:${var.project_name}-${var.environment}-app:${var.project_name}-${var.environment}-eks-service-account"
+            # "${replace(var.eks_cluster_oidc_issuer_url, "https://", "")}:sub" = "system:serviceaccount:${var.project_name}-${var.environment}-eks-namespace:${var.project_name}-${var.environment}-eks-service-account"
+            "${replace(var.eks_cluster_oidc_issuer_url, "https://", "")}:aud": "sts.amazonaws.com",
+            "${replace(var.eks_cluster_oidc_issuer_url, "https://", "")}:sub": "system:serviceaccount:${var.project_name}-${var.environment}-eks-namespace:${var.project_name}-${var.environment}-eks-service-account"
+
           }
         }
       }

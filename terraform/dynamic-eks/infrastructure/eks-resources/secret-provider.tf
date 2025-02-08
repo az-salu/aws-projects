@@ -19,7 +19,5 @@ resource "kubernetes_manifest" "aws_provider" {
   }
   depends_on = [
     kubernetes_namespace.app_namespace,
-    helm_release.secrets_store_csi_driver,             # Ensure CSI driver is installed
-    helm_release.secrets_store_csi_driver_provider_aws # Ensure AWS provider is installed
   ]
 }

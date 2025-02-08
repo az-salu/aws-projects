@@ -40,9 +40,6 @@ module "eks_resources" {
   eks_worker_node_role_arn = data.terraform_remote_state.cluster.outputs.eks_worker_node_role_arn
   admin_username = "labi"
 
-  # Helm chart configuration
-  csi_driver_version = "1.4.8"
-
   # OIDC provider configuration
   eks_cluster_oidc_issuer_url = data.terraform_remote_state.cluster.outputs.eks_cluster_oidc_issuer_url
 

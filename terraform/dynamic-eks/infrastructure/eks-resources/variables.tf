@@ -30,13 +30,6 @@ variable "eks_worker_node_role_arn" {
   type        = string
 }
 
-
-# Helm chart variables
-variable "csi_driver_version" {
-  description = "Version of the secrets-store-csi-driver to install"
-  type        = string
-}
-
 # OIDC provider variables
 variable "eks_cluster_oidc_issuer_url" {
   description = "The OIDC issuer URL for the EKS cluster"
