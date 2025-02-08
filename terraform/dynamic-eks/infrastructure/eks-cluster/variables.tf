@@ -98,6 +98,12 @@ variable "public_access_cidrs" {
   type        = list(string)
 }
 
+# Config map variables
+variable "admin_username" {
+  type        = string
+  description = "The IAM username for the cluster administrator"
+}
+
 # Data migration EC2 instance
 variable "s3_uri" {
   description = "S3 URI for the SQL data migration script"
