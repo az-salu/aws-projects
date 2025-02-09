@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nest-app-deployment
+  namespace: nest-app  # Must match Service namespace: nest-app
+  labels:
+    app: nest-app     # Must match Service selector: app: nest-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nest-app   # Must match Service selector: app: nest-app
+  template:
+    metadata:
+      labels:
+        app: nest-app # Must match Service selector: app: nest-app
+    spec:
+      serviceAccountName: nest-app-service-account
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "aws-secretsmanager"
+      containers:
+      - name: nest-app
+        image: 651783246143.dkr.ecr.us-east-1.amazonaws.com/nest:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80  # Should align with Service port 80 for proper traffic routing
+        volumeMounts:
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
