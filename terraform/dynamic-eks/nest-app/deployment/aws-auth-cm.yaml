@@ -6,6 +6,6 @@ metadata:
 data:
   mapUsers: |
     - userarn: "arn:aws:iam::${AWS_ACCOUNT_ID}:user/${IAM_USERNAME}"
-      username: "${IAM_USERNAME}"   # Must match your IAM username
+      username: "${IAM_USERNAME}"
       groups:
         - system:masters  # Gives admin access to cluster

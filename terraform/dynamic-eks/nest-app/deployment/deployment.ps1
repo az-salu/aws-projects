@@ -1,4 +1,4 @@
-# Define variables
+# General variables
 $APP_NAME = "nest"
 $ENVIRONMENT = "dev"
 $CLUSTER_NAME = "$APP_NAME-$ENVIRONMENT-eks-cluster"
@@ -31,6 +31,98 @@ $SERVICE_FILE_NAME = "service.yaml"
 $LB_INTERNAL = "false"
 $CROSS_ZONE_ENABLED = "true"
 
+# Generate Auth ConfigMap file
+$authConfigContent = @"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapUsers: |
+    - userarn: arn:aws:iam::${AWS_ACCOUNT_ID}:user/$IAM_USERNAME
+      username: $IAM_USERNAME
+      groups:
+        - system:masters
+"@
+$authConfigContent | Out-File -FilePath $AUTH_CONFIG_FILE_NAME -Encoding utf8
+
+# Generate Secret Provider Class file
+$secretProviderClassContent = @"
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: $APP_SECRETS
+  namespace: $NAMESPACE
+spec:
+  provider: aws
+  parameters:
+    objects: |
+        - objectName: "arn:aws:secretsmanager:$REGION:$AWS_ACCOUNT_ID:secret:$SECRET_NAME-$SECRET_SUFFIX"
+          objectAlias: "$SECRET_ALIAS"
+"@
+$secretProviderClassContent | Out-File -FilePath $SECRET_PROVIDER_CLASS_FILE_NAME -Encoding utf8
+
+# Generate Service file
+$serviceContent = @"
+apiVersion: v1
+kind: Service
+metadata:
+  name: $APP_NAME-service
+  namespace: $NAMESPACE
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-internal: "$LB_INTERNAL"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "$CROSS_ZONE_ENABLED"
+spec:
+  type: LoadBalancer
+  ports:
+    - name: web
+      port: $PORT
+  selector:
+    app: $APP_NAME
+"@
+$serviceContent | Out-File -FilePath $SERVICE_FILE_NAME -Encoding utf8
+
+# Generate Deployment file
+$deploymentContent = @"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $APP_NAME-deployment
+  namespace: $NAMESPACE
+  labels:
+    app: $APP_NAME
+spec:
+  replicas: $REPLICAS
+  selector:
+    matchLabels:
+      app: $APP_NAME
+  template:
+    metadata:
+      labels:
+        app: $APP_NAME
+    spec:
+      serviceAccountName: $SERVICE_ACCOUNT_NAME
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "$APP_SECRETS"
+      containers:
+      - name: $APP_NAME
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: $PORT
+        volumeMounts:
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+"@
+$deploymentContent | Out-File -FilePath $DEPLOYMENT_FILE_NAME -Encoding utf8
 
 # Function to check command status
 function Check-CommandStatus {
