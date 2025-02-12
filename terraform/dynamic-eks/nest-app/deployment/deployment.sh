@@ -7,11 +7,11 @@ NC='\033[0m' # No Color
 
 # Define variables
 CLUSTER_NAME="nest-dev-eks-cluster"
-SECRET_MANAGER_ACCESS_POLICY_NAME="secrets-manager-access-policy" # Must create policy first with secret manager access 
-NAMESPACE="nest-app"
+SECRET_MANAGER_ACCESS_POLICY_NAME="secrets-manager-access-policy"
+NAMESPACE="nest-dev-eks-namespace"
 REGION="us-east-1"
 AWS_ACCOUNT_ID="651783246143"
-SERVICE_ACCOUNT_NAME="nest-app-service-account"
+SERVICE_ACCOUNT_NAME="nest-dev-eks-service-account"
 SECRET_PROVIDER_CLASS_FILE_NAME="secret-provider-class.yaml"
 DEPLOYMENT_FILE_NAME="deployment.yaml"
 SERVICE_FILE_NAME="service.yaml"

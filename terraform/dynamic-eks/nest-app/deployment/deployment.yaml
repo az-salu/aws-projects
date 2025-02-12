@@ -1,34 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "${APP_NAME}-deployment"
-  namespace: "${NAMESPACE}" # Must match Service namespace
+  name: nest-dev-eks-deployment
+  namespace: nest-dev-eks-namespace  # Must match Service namespace: nest-dev-eks-namespace
   labels:
-    app: "${APP_NAME}" # Must match Service selector
+    app: nest-app     # Must match Service selector: app: nest-app
 spec:
-  replicas: "${REPLICAS}"
+  replicas: 1
   selector:
     matchLabels:
-      app: "${APP_NAME}" # Must match Service selector
+      app: nest-app   # Must match Service selector: app: nest-app
   template:
     metadata:
       labels:
-        app: "${APP_NAME}" # Must match Service selector
+        app: nest-app # Must match Service selector: app: nest-app
     spec:
-      serviceAccountName: "${APP_NAME}-service-account"
+      serviceAccountName: nest-dev-eks-service-account
       volumes:
       - name: secrets-store-inline
         csi:
           driver: secrets-store.csi.k8s.io
           readOnly: true
           volumeAttributes:
-            secretProviderClass: "${APP_SECRETS}" # Must match SecretProviderClass metadata name
+            secretProviderClass: nest-dev-eks-secret-provider-class # Must match SecretProviderClass metadata.name: "nest-dev-eks-secrets"
       containers:
-      - name: "${APP_NAME}-container"
-        image: "${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}"
+      - name: nest-dev-eks-container
+        image: 651783246143.dkr.ecr.us-east-1.amazonaws.com/nest:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: "${PORT}" # Must match Service port
+        - containerPort: 80  # Should align with Service port 80 for proper traffic routing
         volumeMounts:
         - name: secrets-store-inline
           mountPath: "/mnt/secrets-store"

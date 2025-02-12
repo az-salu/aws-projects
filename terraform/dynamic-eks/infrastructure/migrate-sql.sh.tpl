@@ -13,7 +13,7 @@ sudo wget -qO- https://download.red-gate.com/maven/release/com/redgate/flyway/fl
 sudo mkdir sql
 
 # Download the migration SQL script from AWS S3
-sudo aws s3 cp "$S3_URI" sql/
+sudo aws s3 cp "{$S3_URI}" sql/
 
 # Run Flyway migration
 sudo flyway -url=jdbc:mysql://"${RDS_ENDPOINT}"/"${RDS_DB_NAME}"?allowPublicKeyRetrieval=true \
