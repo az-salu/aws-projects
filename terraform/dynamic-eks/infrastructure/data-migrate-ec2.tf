@@ -6,8 +6,7 @@ resource "aws_instance" "data_migrate_ec2" {
   vpc_security_group_ids = [aws_security_group.data_migrate_server_security_group.id]
   iam_instance_profile   = aws_iam_instance_profile.s3_full_access_instance_profile.name
 
-  user_data = base64encode(templatefile("${path.module}/migrate-sql.sh.tpl", {
-    S3_URI          = var.s3_uri
+  user_data = base64encode(templatefile("${path.root}/../nest-app/migrate-sql.sh.tpl", {
     RDS_ENDPOINT    = aws_db_instance.database_instance.endpoint
     RDS_DB_NAME     = local.secrets.db_name
     RDS_DB_USERNAME = local.secrets.username
