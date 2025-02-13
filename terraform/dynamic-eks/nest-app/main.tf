@@ -4,6 +4,7 @@ locals {
   region            = "us-east-1"
   project_name      = "nest"
   environment       = "dev"
+  project_directory = "nest-app"
   secret_name       = "app-secrets"
   secret_suffix     = "ATCH9v"
 }
@@ -17,6 +18,7 @@ module "eks_cluster" {
   region            = local.region
   project_name      = local.project_name
   environment       = local.environment
+  project_directory = local.project_directory
 
   # VPC configuration
   vpc_cidr                     = "10.0.0.0/16"
@@ -42,32 +44,10 @@ module "eks_cluster" {
   public_access_cidrs = ["72.83.211.170/32"]
 
   # Data migration EC2 instance configuration
-  s3_uri = "s3://aosnote-sql-files/V1__nest.sql"
   amazon_linux_ami_id = "ami-051f7e7f6c2f40dc1"
   ec2_instance_type   = "t2.micro"
 }
 
-# Output the EKS cluster name
-output "eks_cluster_name" {
-  value = module.eks_cluster.eks_cluster_name
-}
-
-# Output the EKS cluster endpoint
-output "eks_cluster_endpoint" {
-  value = module.eks_cluster.eks_cluster_endpoint
-}
-
-# Output the EKS cluster CA certificate
-output "eks_cluster_ca_certificate" {
-  value = module.eks_cluster.eks_cluster_ca_certificate 
-}
-
-# Output the OIDC issuer URL for the EKS cluster
-output "eks_cluster_oidc_issuer_url" {
-  value = module.eks_cluster.eks_cluster_oidc_issuer_url
-}
-
-# Output the ARN of the EKS Worker Node IAM Role
-output "eks_worker_node_role_arn" {
-  value = module.eks_cluster.eks_worker_node_role_arn
+output "path" {
+  value = path.root
 }

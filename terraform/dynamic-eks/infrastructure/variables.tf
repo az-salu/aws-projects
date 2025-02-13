@@ -19,6 +19,11 @@ variable "environment" {
   type        = string
 }
 
+variable "project_directory" {
+  description = "Directory name where the project is located"
+  type        = string
+}
+
 # VPC variables
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
