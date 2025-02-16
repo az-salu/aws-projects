@@ -48,6 +48,76 @@ module "eks_cluster" {
   ec2_instance_type   = "t2.micro"
 }
 
-output "path" {
-  value = path.root
+# Null resource to run the deployment script after EKS cluster is ready
+resource "null_resource" "deploy_to_eks" {
+  triggers = {
+    cluster_endpoint = module.eks_cluster.eks_cluster_endpoint
+    script_hash     = filesha256("${path.module}/deployment/deployment.sh")
+  }
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}/deployment"
+    interpreter = ["/bin/bash", "-c"]
+    
+    command = <<-EOT
+      # Wait for the EKS cluster to be fully ready
+      echo "Waiting for EKS cluster to be ready..."
+      aws eks wait cluster-active --name nest-dev-eks-cluster --region ${local.region}
+      
+      # Execute the deployment script
+      ./deployment.sh
+
+      # Wait for the load balancer to be created and active
+      echo "Waiting for Load Balancer to be ready..."
+      sleep 60  # Give some time for the NLB to be created
+    EOT
+  }
+
+  depends_on = [
+    module.eks_cluster
+  ]
+}
+
+# Get the hosted zone ID
+data "aws_route53_zone" "route53_zone" {
+  name         = "aosnotes77.com"
+  private_zone = false
+}
+
+# Get the NLB details - this will now wait for the deployment
+data "aws_lb" "nlb" {
+  tags = {
+    "kubernetes.io/service-name" = "nest-dev-eks-namespace/nest-dev-eks-service"
+  }
+
+  depends_on = [
+    null_resource.deploy_to_eks
+  ]
+}
+
+# Create the A record
+resource "aws_route53_record" "route53_record" {
+  zone_id = data.aws_route53_zone.route53_zone.zone_id
+  name    = "www"
+  type    = "A"
+
+  alias {
+    name                   = data.aws_lb.nlb.dns_name
+    zone_id               = data.aws_lb.nlb.zone_id
+    evaluate_target_health = true
+  }
+
+  depends_on = [
+    data.aws_lb.nlb
+  ]
+}
+
+# Output the DNS details
+output "load_balancer_dns" {
+  value = data.aws_lb.nlb.dns_name
+}
+
+# Website URL
+output "website_url" {
+  value = join("", ["https://", aws_route53_record.route53_record.name, ".", data.aws_route53_zone.route53_zone.name])
 }
