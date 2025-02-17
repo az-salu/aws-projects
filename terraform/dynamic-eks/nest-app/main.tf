@@ -50,19 +50,30 @@ module "eks_cluster" {
 
 # Null resource to run the deployment script after EKS cluster is ready
 resource "null_resource" "deploy_to_eks" {
+  # Triggers determine when Terraform should re-run the provisioners
   triggers = {
     cluster_endpoint = module.eks_cluster.eks_cluster_endpoint
     script_hash     = filesha256("${path.module}/deployment/deployment.sh")
+    region          = local.region
+    namespace       = "${local.project_name}-${local.environment}-eks-namespace"
+    cluster_name    = "${local.project_name}-${local.environment}-eks-cluster"
+    service_name    = "${local.project_name}-${local.environment}-eks-service"
   }
 
+  # Deploy
   provisioner "local-exec" {
     working_dir = "${path.module}/deployment"
     interpreter = ["/bin/bash", "-c"]
     
+    environment = {
+      CLUSTER_NAME = self.triggers.cluster_name
+      REGION = self.triggers.region
+    }
+    
     command = <<-EOT
       # Wait for the EKS cluster to be fully ready
       echo "Waiting for EKS cluster to be ready..."
-      aws eks wait cluster-active --name nest-dev-eks-cluster --region ${local.region}
+      aws eks wait cluster-active --name $CLUSTER_NAME --region $REGION
       
       # Execute the deployment script
       ./deployment.sh
@@ -70,6 +81,29 @@ resource "null_resource" "deploy_to_eks" {
       # Wait for the load balancer to be created and active
       echo "Waiting for Load Balancer to be ready..."
       sleep 60  # Give some time for the NLB to be created
+    EOT
+  }
+
+  # Cleanup on destroy - only delete the service, the NLB will be deleted as part of the service deletion
+  provisioner "local-exec" {
+    when    = destroy
+    working_dir = "${path.module}/deployment"
+    interpreter = ["/bin/bash", "-c"]
+    
+    environment = {
+      NAMESPACE = self.triggers.namespace
+      SERVICE_NAME = self.triggers.service_name
+    }
+    
+    command = <<-EOT
+      echo "Cleaning up Network Load Balancer..."
+      
+      # Delete the service (this will delete the NLB)
+      kubectl delete service $SERVICE_NAME -n $NAMESPACE --ignore-not-found=true
+      
+      # Wait for load balancer deletion
+      echo "Waiting for Load Balancer to be deleted..."
+      sleep 30
     EOT
   }
 
@@ -87,7 +121,7 @@ data "aws_route53_zone" "route53_zone" {
 # Get the NLB details - this will now wait for the deployment
 data "aws_lb" "nlb" {
   tags = {
-    "kubernetes.io/service-name" = "nest-dev-eks-namespace/nest-dev-eks-service"
+    "kubernetes.io/service-name" = "${local.project_name}-${local.environment}-eks-namespace/${local.project_name}-${local.environment}-eks-service"
   }
 
   depends_on = [
