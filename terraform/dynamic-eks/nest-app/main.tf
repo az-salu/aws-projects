@@ -7,6 +7,32 @@ locals {
   project_directory = "nest-app"
   secret_name       = "app-secrets"
   secret_suffix     = "ATCH9v"
+
+  deploy_command_windows = <<-EOT
+    # Wait for the EKS cluster to be fully ready
+    Write-Host "Waiting for EKS cluster to be ready..."
+    aws eks wait cluster-active --name $env:CLUSTER_NAME --region $env:REGION
+    
+    # Execute the deployment script
+    ./deployment.ps1
+
+    # Wait for the load balancer to be created and active
+    Write-Host "Waiting for Load Balancer to be ready..."
+    Start-Sleep -Seconds 60  # Give some time for the NLB to be created
+  EOT
+
+  deploy_command_unix = <<-EOT
+    # Wait for the EKS cluster to be fully ready
+    echo "Waiting for EKS cluster to be ready..."
+    aws eks wait cluster-active --name $CLUSTER_NAME --region $REGION
+    
+    # Execute the deployment script
+    ./deployment.sh
+
+    # Wait for the load balancer to be created and active
+    echo "Waiting for Load Balancer to be ready..."
+    sleep 60  # Give some time for the NLB to be created
+  EOT
 }
 
 # Create an EKS cluster and Worker Nodes
@@ -53,55 +79,37 @@ resource "null_resource" "deploy_to_eks" {
   # Triggers determine when Terraform should re-run the provisioners
   triggers = {
     cluster_endpoint = module.eks_cluster.eks_cluster_endpoint
-    script_hash     = filesha256("${path.module}/deployment/deployment.sh")
-    region          = local.region
-    namespace       = "${local.project_name}-${local.environment}-eks-namespace"
-    cluster_name    = "${local.project_name}-${local.environment}-eks-cluster"
-    service_name    = "${local.project_name}-${local.environment}-eks-service"
+    script_hash      = var.is_windows ? filesha256("${path.module}/deployment/deployment.ps1") : filesha256("${path.module}/deployment/deployment.sh")
+    region           = local.region
+    namespace        = "${local.project_name}-${local.environment}-eks-namespace"
+    cluster_name     = "${local.project_name}-${local.environment}-eks-cluster"
+    service_name     = "${local.project_name}-${local.environment}-eks-service"
+    is_windows       = var.is_windows ? "true" : "false" 
   }
 
-  # Deploy
+  # Deployment Provisioner
   provisioner "local-exec" {
     working_dir = "${path.module}/deployment"
-    interpreter = ["/bin/bash", "-c"]
-    
+    interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     environment = {
       CLUSTER_NAME = self.triggers.cluster_name
-      REGION = self.triggers.region
+      REGION       = self.triggers.region
     }
-    
-    command = <<-EOT
-      # Wait for the EKS cluster to be fully ready
-      echo "Waiting for EKS cluster to be ready..."
-      aws eks wait cluster-active --name $CLUSTER_NAME --region $REGION
-      
-      # Execute the deployment script
-      ./deployment.sh
-
-      # Wait for the load balancer to be created and active
-      echo "Waiting for Load Balancer to be ready..."
-      sleep 60  # Give some time for the NLB to be created
-    EOT
+    command = self.triggers.is_windows == "true" ? local.deploy_command_windows : local.deploy_command_unix
   }
 
-  # Cleanup on destroy - only delete the service, the NLB will be deleted as part of the service deletion
+  # Cleanup Provisioner
   provisioner "local-exec" {
-    when    = destroy
+    when        = destroy
     working_dir = "${path.module}/deployment"
-    interpreter = ["/bin/bash", "-c"]
-    
+    interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"] 
     environment = {
-      NAMESPACE = self.triggers.namespace
+      NAMESPACE    = self.triggers.namespace
       SERVICE_NAME = self.triggers.service_name
     }
-    
     command = <<-EOT
       echo "Cleaning up Network Load Balancer..."
-      
-      # Delete the service (this will delete the NLB)
       kubectl delete service $SERVICE_NAME -n $NAMESPACE --ignore-not-found=true
-      
-      # Wait for load balancer deletion
       echo "Waiting for Load Balancer to be deleted..."
       sleep 30
     EOT
@@ -111,6 +119,7 @@ resource "null_resource" "deploy_to_eks" {
     module.eks_cluster
   ]
 }
+
 
 # Get the hosted zone ID
 data "aws_route53_zone" "route53_zone" {
