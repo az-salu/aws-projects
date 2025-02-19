@@ -9,29 +9,33 @@ locals {
   secret_suffix     = "ATCH9v"
 
   deploy_command_windows = <<-EOT
-    # Wait for the EKS cluster to be fully ready
     Write-Host "Waiting for EKS cluster to be ready..."
     aws eks wait cluster-active --name $env:CLUSTER_NAME --region $env:REGION
-    
-    # Execute the deployment script
     ./deployment.ps1
-
-    # Wait for the load balancer to be created and active
     Write-Host "Waiting for Load Balancer to be ready..."
-    Start-Sleep -Seconds 60  # Give some time for the NLB to be created
+    Start-Sleep -Seconds 60
   EOT
 
   deploy_command_unix = <<-EOT
-    # Wait for the EKS cluster to be fully ready
     echo "Waiting for EKS cluster to be ready..."
     aws eks wait cluster-active --name $CLUSTER_NAME --region $REGION
-    
-    # Execute the deployment script
     ./deployment.sh
-
-    # Wait for the load balancer to be created and active
     echo "Waiting for Load Balancer to be ready..."
-    sleep 60  # Give some time for the NLB to be created
+    sleep 60
+  EOT
+
+  cleanup_command_windows = <<-EOT
+    Write-Host "Cleaning up Network Load Balancer..."
+    kubectl delete service $env:SERVICE_NAME -n $env:NAMESPACE --ignore-not-found=true
+    Write-Host "Waiting for Load Balancer to be deleted..."
+    Start-Sleep -Seconds 30
+  EOT
+
+  cleanup_command_unix = <<-EOT
+    echo "Cleaning up Network Load Balancer..."
+    kubectl delete service $SERVICE_NAME -n $NAMESPACE --ignore-not-found=true
+    echo "Waiting for Load Balancer to be deleted..."
+    sleep 30
   EOT
 }
 
@@ -76,7 +80,6 @@ module "eks_cluster" {
 
 # Null resource to run the deployment script after EKS cluster is ready
 resource "null_resource" "deploy_to_eks" {
-  # Triggers determine when Terraform should re-run the provisioners
   triggers = {
     cluster_endpoint = module.eks_cluster.eks_cluster_endpoint
     script_hash      = var.is_windows ? filesha256("${path.module}/deployment/deployment.ps1") : filesha256("${path.module}/deployment/deployment.sh")
@@ -84,7 +87,9 @@ resource "null_resource" "deploy_to_eks" {
     namespace        = "${local.project_name}-${local.environment}-eks-namespace"
     cluster_name     = "${local.project_name}-${local.environment}-eks-cluster"
     service_name     = "${local.project_name}-${local.environment}-eks-service"
-    is_windows       = var.is_windows ? "true" : "false" 
+    is_windows       = var.is_windows ? "true" : "false"
+    deploy_command   = var.is_windows ? local.deploy_command_windows : local.deploy_command_unix
+    cleanup_command  = var.is_windows ? local.cleanup_command_windows : local.cleanup_command_unix
   }
 
   # Deployment Provisioner
@@ -95,31 +100,25 @@ resource "null_resource" "deploy_to_eks" {
       CLUSTER_NAME = self.triggers.cluster_name
       REGION       = self.triggers.region
     }
-    command = self.triggers.is_windows == "true" ? local.deploy_command_windows : local.deploy_command_unix
+    command = self.triggers.deploy_command
   }
 
-  # Cleanup Provisioner
+  # Cleanup Provisioner. Will delete the Service and the Network Load Balancer
   provisioner "local-exec" {
     when        = destroy
     working_dir = "${path.module}/deployment"
-    interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"] 
+    interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     environment = {
       NAMESPACE    = self.triggers.namespace
       SERVICE_NAME = self.triggers.service_name
     }
-    command = <<-EOT
-      echo "Cleaning up Network Load Balancer..."
-      kubectl delete service $SERVICE_NAME -n $NAMESPACE --ignore-not-found=true
-      echo "Waiting for Load Balancer to be deleted..."
-      sleep 30
-    EOT
+    command = self.triggers.cleanup_command
   }
 
   depends_on = [
     module.eks_cluster
   ]
 }
-
 
 # Get the hosted zone ID
 data "aws_route53_zone" "route53_zone" {
@@ -153,6 +152,13 @@ resource "aws_route53_record" "route53_record" {
   depends_on = [
     data.aws_lb.nlb
   ]
+}
+
+# This resource will wait 30 seconds before completing the deployment
+resource "time_sleep" "wait_after_record" {
+  depends_on = [aws_route53_record.route53_record]
+
+  create_duration = "30s"
 }
 
 # Output the DNS details
