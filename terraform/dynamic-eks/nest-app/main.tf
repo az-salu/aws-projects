@@ -8,6 +8,16 @@ locals {
   secret_name       = "app-secrets"
   secret_suffix     = "ATCH9v"
 
+  setup_command_windows = <<-EOT
+    Write-Host "Running initial setup..."
+    ./setup.sh
+  EOT
+
+  setup_command_unix = <<-EOT
+    echo "Running initial setup..."
+    ./setup.sh
+  EOT
+
   deploy_command_windows = <<-EOT
     Write-Host "Waiting for EKS cluster to be ready..."
     aws eks wait cluster-active --name $env:CLUSTER_NAME --region $env:REGION
@@ -78,11 +88,32 @@ module "eks_cluster" {
   ec2_instance_type   = "t2.micro"
 }
 
+# Setup resource that only runs when var.run_setup is true
+resource "null_resource" "eks_setup" {
+  count = var.run_setup ? 1 : 0
+
+  triggers = {
+    script_hash   = var.is_windows ? filesha256("${path.module}/deployment/windows/setup.ps1") : filesha256("${path.module}/deployment/unix/setup.sh")
+    is_windows    = var.is_windows ? "true" : "false"
+    setup_command = var.is_windows ? local.setup_command_windows : local.setup_command_unix
+  }
+
+  provisioner "local-exec" {
+    working_dir = self.triggers.is_windows == "true" ? "${path.module}/deployment/windows" : "${path.module}/deployment/unix"
+    interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
+    command     = self.triggers.setup_command
+  }
+
+  depends_on = [
+    module.eks_cluster
+  ]
+}
+
 # Null resource to run the deployment script after EKS cluster is ready
 resource "null_resource" "deploy_to_eks" {
   triggers = {
     cluster_endpoint = module.eks_cluster.eks_cluster_endpoint
-    script_hash      = var.is_windows ? filesha256("${path.module}/deployment/deployment.ps1") : filesha256("${path.module}/deployment/deployment.sh")
+    script_hash      = var.is_windows ? filesha256("${path.module}/deployment/windows/deployment.ps1") : filesha256("${path.module}/deployment/unix/deployment.sh")
     region           = local.region
     namespace        = "${local.project_name}-${local.environment}-eks-namespace"
     cluster_name     = "${local.project_name}-${local.environment}-eks-cluster"
@@ -94,7 +125,7 @@ resource "null_resource" "deploy_to_eks" {
 
   # Deployment Provisioner
   provisioner "local-exec" {
-    working_dir = "${path.module}/deployment"
+    working_dir = self.triggers.is_windows == "true" ? "${path.module}/deployment/windows" : "${path.module}/deployment/unix"
     interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     environment = {
       CLUSTER_NAME = self.triggers.cluster_name
@@ -106,7 +137,7 @@ resource "null_resource" "deploy_to_eks" {
   # Cleanup Provisioner. Will delete the Service and the Network Load Balancer
   provisioner "local-exec" {
     when        = destroy
-    working_dir = "${path.module}/deployment"
+    working_dir = self.triggers.is_windows == "true" ? "${path.module}/deployment/windows" : "${path.module}/deployment/unix"
     interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     environment = {
       NAMESPACE    = self.triggers.namespace
@@ -116,7 +147,8 @@ resource "null_resource" "deploy_to_eks" {
   }
 
   depends_on = [
-    module.eks_cluster
+    module.eks_cluster,
+    null_resource.eks_setup
   ]
 }
 
@@ -145,7 +177,7 @@ resource "aws_route53_record" "route53_record" {
 
   alias {
     name                   = data.aws_lb.nlb.dns_name
-    zone_id               = data.aws_lb.nlb.zone_id
+    zone_id                = data.aws_lb.nlb.zone_id
     evaluate_target_health = true
   }
 
