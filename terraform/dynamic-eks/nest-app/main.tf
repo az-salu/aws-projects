@@ -10,18 +10,18 @@ locals {
 
   setup_command_windows = <<-EOT
     Write-Host "Running initial setup..."
-    ./setup.sh
+    .\windows\setup.ps1
   EOT
 
   setup_command_unix = <<-EOT
     echo "Running initial setup..."
-    ./setup.sh
+    ./unix/setup.sh
   EOT
 
   deploy_command_windows = <<-EOT
     Write-Host "Waiting for EKS cluster to be ready..."
     aws eks wait cluster-active --name $env:CLUSTER_NAME --region $env:REGION
-    ./deployment.ps1
+    .\windows\deployment.ps1
     Write-Host "Waiting for Load Balancer to be ready..."
     Start-Sleep -Seconds 60
   EOT
@@ -29,7 +29,7 @@ locals {
   deploy_command_unix = <<-EOT
     echo "Waiting for EKS cluster to be ready..."
     aws eks wait cluster-active --name $CLUSTER_NAME --region $REGION
-    ./deployment.sh
+    ./unix/deployment.sh
     echo "Waiting for Load Balancer to be ready..."
     sleep 60
   EOT
@@ -99,7 +99,7 @@ resource "null_resource" "eks_setup" {
   }
 
   provisioner "local-exec" {
-    working_dir = self.triggers.is_windows == "true" ? "${path.module}/deployment/windows" : "${path.module}/deployment/unix"
+    working_dir = "${path.module}/deployment"
     interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     command     = self.triggers.setup_command
   }
@@ -125,7 +125,7 @@ resource "null_resource" "deploy_to_eks" {
 
   # Deployment Provisioner
   provisioner "local-exec" {
-    working_dir = self.triggers.is_windows == "true" ? "${path.module}/deployment/windows" : "${path.module}/deployment/unix"
+    working_dir = "${path.module}/deployment"
     interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     environment = {
       CLUSTER_NAME = self.triggers.cluster_name
@@ -137,7 +137,7 @@ resource "null_resource" "deploy_to_eks" {
   # Cleanup Provisioner. Will delete the Service and the Network Load Balancer
   provisioner "local-exec" {
     when        = destroy
-    working_dir = self.triggers.is_windows == "true" ? "${path.module}/deployment/windows" : "${path.module}/deployment/unix"
+    working_dir = "${path.module}/deployment"
     interpreter = self.triggers.is_windows == "true" ? ["PowerShell", "-Command"] : ["/bin/bash", "-c"]
     environment = {
       NAMESPACE    = self.triggers.namespace
@@ -165,6 +165,7 @@ data "aws_lb" "nlb" {
   }
 
   depends_on = [
+    null_resource.eks_setup,
     null_resource.deploy_to_eks
   ]
 }
