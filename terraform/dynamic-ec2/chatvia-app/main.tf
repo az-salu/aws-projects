@@ -2,7 +2,7 @@ locals {
   region            = "us-east-1"
   project_name      = "chatvia"
   environment       = "dev"
-  project_directory = "chatvia-nodejs-app"
+  project_directory = "chatvia-app"
   domain_name       = "aosnotes77.com"
   record_name       = "www"
 }

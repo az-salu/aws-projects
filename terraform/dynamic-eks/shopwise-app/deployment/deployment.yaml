@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopwise-dev-eks-deployment
+  namespace: shopwise-dev-eks-namespace  # Must match Service namespace: shopwise-dev-eks-namespace
+  labels:
+    app: shopwise-app     # Must match Service selector: app: shopwise-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shopwise-app   # Must match Service selector: app: shopwise-app
+  template:
+    metadata:
+      labels:
+        app: shopwise-app # Must match Service selector: app: shopwise-app
+    spec:
+      serviceAccountName: shopwise-dev-eks-service-account
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: shopwise-dev-eks-secret-provider-class # Must match SecretProviderClass metadata.name: "shopwise-dev-eks-secrets"
+      containers:
+      - name: shopwise-dev-eks-container
+        image: 651783246143.dkr.ecr.us-east-1.amazonaws.com/shopwise:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80  # Should align with Service port 80 for proper traffic routing
+        volumeMounts:
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true

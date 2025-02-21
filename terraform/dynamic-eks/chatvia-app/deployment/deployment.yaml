@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatvia-dev-eks-deployment
+  namespace: chatvia-dev-eks-namespace  # Must match Service namespace: chatvia-dev-eks-namespace
+  labels:
+    app: chatvia-app     # Must match Service selector: app: chatvia-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatvia-app   # Must match Service selector: app: chatvia-app
+  template:
+    metadata:
+      labels:
+        app: chatvia-app # Must match Service selector: app: chatvia-app
+    spec:
+      serviceAccountName: chatvia-dev-eks-service-account
+      volumes:
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: chatvia-dev-eks-secret-provider-class # Must match SecretProviderClass metadata.name: "chatvia-dev-eks-secrets"
+      containers:
+      - name: chatvia-dev-eks-container
+        image: 651783246143.dkr.ecr.us-east-1.amazonaws.com/chatvia:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80  # Should align with Service port 80 for proper traffic routing
+        volumeMounts:
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets-store"
+          readOnly: true

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth # Must be named aws-auth
+  namespace: kube-system # Must be in kube-system
+data:
+  mapUsers: |
+    - userarn: arn:aws:iam::651783246143:user/labi  # Must match your IAM user ARN
+      username: labi   # Must match your IAM username
+      groups:
+        - system:masters  # Gives admin access to cluster
