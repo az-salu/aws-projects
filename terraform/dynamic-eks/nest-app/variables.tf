@@ -9,5 +9,5 @@ variable "run_setup" {
 variable "is_windows" {
   description = "Set to true when running on Windows"
   type        = bool
-  default     = false
+  default     = true
 }
