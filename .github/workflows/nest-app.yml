@@ -5,7 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'cicd/dynamic-ecs/**'
+      - 'github/workflows/nest-app.yaml'
+      - 'terraform/dynamic-ecs/nest-app/**'
+      - 'terraform/dynamic-ecs/infastructure/**'
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
