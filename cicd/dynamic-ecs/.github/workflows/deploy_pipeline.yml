@@ -18,18 +18,18 @@ env:
 #   WEB_FILE_UNZIP: rentzone
 #   FLYWAY_VERSION: 9.8.1
 
-# jobs:
-#   # Configure AWS credentials 
-#   configure_aws_credentials: 
-#     name: Configure AWS credentials
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ env.AWS_REGION }}
+jobs:
+  # Configure AWS credentials 
+  configure_aws_credentials: 
+    name: Configure AWS credentials
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
 
 #   # Build AWS infrastructure
