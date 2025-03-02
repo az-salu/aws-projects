@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'github/workflows/nest-app.yml'
+      - 'github/workflows/**'
       - 'terraform/dynamic-ecs/nest-app/**'
       - 'terraform/dynamic-ecs/infrastructure/**'
 
