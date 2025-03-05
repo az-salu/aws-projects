@@ -109,34 +109,35 @@ jobs:
       ecs_service_name: ${{ env.ECS_SERVICE_NAME }}
 
 
-#   # Create ECR repository
-#   create_ecr_repository:
-#     name: Create ECR repository
-#     needs: 
-#       - configure_aws_credentials
-#       - deploy_aws_infrastructure
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy' 
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v3
+  # Create ECR repository
+  create_ecr_repository:
+    name: Create ECR repository
+    needs: 
+      - configure_aws_credentials
+      - deploy_aws_infrastructure
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy' 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-#       - name: Check if ECR repository exists
-#         env:
-#           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
-#         run: |
-#           result=$(aws ecr describe-repositories --repository-names "${{ env.IMAGE_NAME }}" | jq -r '.repositories[0].repositoryName')
-#           echo "repo_name=$result" >> $GITHUB_ENV
-#         continue-on-error: true
+      # && means "run the next command only if the previous command succeeded"
+      # || means "run the next command only if the previous command failed"
+      - name: Check if ECR repository exists
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+        run: |
+          aws ecr describe-repositories --repository-names "$IMAGE_NAME" \
+            && echo "repo_name=$IMAGE_NAME" >> $GITHUB_ENV \ 
+            || echo "repo_name=" >> $GITHUB_ENV
+        continue-on-error: true
 
-#       - name: Create ECR repository
-#         env:
-#           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
-#         if: env.repo_name != env.IMAGE_NAME
-#         run: |
-#           aws ecr create-repository --repository-name ${{ env.IMAGE_NAME }}
-
-
+      - name: Create ECR repository
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+        if: env.repo_name != env.IMAGE_NAME
+        run: |
+          aws ecr create-repository --repository-name "$IMAGE_NAME"
 
 
 #   # Build and push Docker image to ECR
