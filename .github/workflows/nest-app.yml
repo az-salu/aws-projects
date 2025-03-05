@@ -61,37 +61,37 @@ jobs:
 
       - name: Get Terraform output image tag
         if: env.TERRAFORM_ACTION == 'apply'
-        working-directory: ./iac
+        working-directory: ./terraform/dynamic-ecs/nest-app
         run: |
           echo "IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)" >> $GITHUB_ENV
 
       - name: Get Terraform output domain name
         if: env.TERRAFORM_ACTION == 'apply'
-        working-directory: ./iac
+        working-directory: ./terraform/dynamic-ecs/nest-app
         run: |
           echo "DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
       - name: Get Terraform output RDS endpoint
         if: env.TERRAFORM_ACTION == 'apply'
-        working-directory: ./iac
+        working-directory: ./terraform/dynamic-ecs/nest-app
         run: |
           echo "RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)" >> $GITHUB_ENV
 
       - name: Get Terraform output task definition name
         if: env.TERRAFORM_ACTION == 'apply'
-        working-directory: ./iac
+        working-directory: ./terraform/dynamic-ecs/nest-app
         run: |
           echo "ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
       - name: Get Terraform output ecs cluster name
         if: env.TERRAFORM_ACTION == 'apply'
-        working-directory: ./iac
+        working-directory: ./terraform/dynamic-ecs/nest-app
         run: |
           echo "ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
       - name: Get Terraform output ecs service name
         if: env.TERRAFORM_ACTION == 'apply'
-        working-directory: ./iac
+        working-directory: ./terraform/dynamic-ecs/nest-app
         run: |
           echo "ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
