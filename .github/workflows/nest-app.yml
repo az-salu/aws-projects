@@ -121,23 +121,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # && means "run the next command only if the previous command succeeded"
-      # || means "run the next command only if the previous command failed"
       - name: Check if ECR repository exists
         env:
           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
         run: |
-          aws ecr describe-repositories --repository-names "$IMAGE_NAME" \
-            && echo "repo_name=$IMAGE_NAME" >> $GITHUB_ENV \ 
-            || echo "repo_name=" >> $GITHUB_ENV
-        continue-on-error: true
+          if aws ecr describe-repositories --repository-names "$IMAGE_NAME" &>/dev/null; then
+            echo "repo_name=$IMAGE_NAME" >> $GITHUB_ENV
+          else
+            echo "repo_name=" >> $GITHUB_ENV
+          fi
 
       - name: Create ECR repository
         env:
           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
         if: env.repo_name != env.IMAGE_NAME
         run: |
-          aws ecr create-repository --repository-name "$IMAGE_NAME"
+          aws ecr create-repository --repository-name "$IMAGE_NAME" || true
 
 
 #   # Build and push Docker image to ECR
