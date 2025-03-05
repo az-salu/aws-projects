@@ -98,15 +98,15 @@ jobs:
       - name: Print GITHUB_ENV contents
         run: cat $GITHUB_ENV
 
-    # outputs:
-    #   terraform_action: ${{ env.TERRAFORM_ACTION }}
-    #   image_name: ${{ env.IMAGE_NAME }}
-    #   image_tag: ${{ env.IMAGE_TAG }}
-    #   domain_name: ${{ env.DOMAIN_NAME }}
-    #   rds_endpoint: ${{ env.RDS_ENDPOINT }}
-    #   task_definition_name: ${{ env.TASK_DEFINITION_NAME }}
-    #   ecs_cluster_name: ${{ env.ECS_CLUSTER_NAME }}
-    #   ecs_service_name: ${{ env.ECS_SERVICE_NAME }}
+    outputs:
+      terraform_action: ${{ env.TERRAFORM_ACTION }}
+      image_name: ${{ env.IMAGE_NAME }}
+      image_tag: ${{ env.IMAGE_TAG }}
+      domain_name: ${{ env.DOMAIN_NAME }}
+      rds_endpoint: ${{ env.RDS_ENDPOINT }}
+      task_definition_name: ${{ env.ECS_TASK_DEFINITION_NAME }}
+      ecs_cluster_name: ${{ env.ECS_CLUSTER_NAME }}
+      ecs_service_name: ${{ env.ECS_SERVICE_NAME }}
 
 
 #   # Create ECR repository

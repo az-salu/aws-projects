@@ -1,6 +1,6 @@
 # Output variables to expose infrastructure resources for deployment automation and reference
 output "image_name" {
-  value       = module.nest-app.image_name
+  value = module.nest-app.image_name
 }
 
 output "image_tag" {
