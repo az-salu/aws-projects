@@ -121,22 +121,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check if ECR repository exists
+      - name: Check and create ECR repository if needed
         env:
           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
         run: |
-          if aws ecr describe-repositories --repository-names "$IMAGE_NAME" &>/dev/null; then
-            echo "repo_name=$IMAGE_NAME" >> $GITHUB_ENV
+          if ! aws ecr describe-repositories --repository-names "$IMAGE_NAME" &>/dev/null; then
+            echo "Creating ECR repository: $IMAGE_NAME"
+            aws ecr create-repository --repository-name "$IMAGE_NAME"
           else
-            echo "repo_name=" >> $GITHUB_ENV
+            echo "ECR repository $IMAGE_NAME already exists. Skipping creation."
           fi
 
-      - name: Create ECR repository
-        env:
-          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
-        if: env.repo_name != env.IMAGE_NAME
-        run: |
-          aws ecr create-repository --repository-name "$IMAGE_NAME" || true
+      # - name: Check if ECR repository exists
+      #   env:
+      #     IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+      #   run: |
+      #     if aws ecr describe-repositories --repository-names "$IMAGE_NAME" &>/dev/null; then
+      #       echo "repo_name=$IMAGE_NAME" >> $GITHUB_ENV
+      #     else
+      #       echo "repo_name=" >> $GITHUB_ENV
+      #     fi
+
+      # - name: Create ECR repository
+      #   env:
+      #     IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+      #   if: env.repo_name != env.IMAGE_NAME
+      #   run: |
+      #     aws ecr create-repository --repository-name "$IMAGE_NAME" || true
 
 
 #   # Build and push Docker image to ECR
