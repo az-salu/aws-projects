@@ -1,4 +1,4 @@
-# store the terraform state file in s3 and lock with dynamodb
+# Store the Terraform state file in S3 and lock with DynamoDB
 terraform {
   backend "s3" {
     bucket         = "aosnote-terraform-remote-state"

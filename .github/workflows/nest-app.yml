@@ -13,12 +13,9 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: us-east-1
-  TERRAFORM_ACTION: destroy
+  TERRAFORM_ACTION: apply
 #   GITHUB_USERNAME: aosnotes77
 #   REPOSITORY_NAME: application-codes
-#   WEB_FILE_ZIP: rentzone.zip
-#   WEB_FILE_UNZIP: rentzone
-#   FLYWAY_VERSION: 9.8.1
 
 jobs:
   # Configure AWS credentials 
@@ -32,7 +29,6 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
 
   # Build AWS infrastructure
   deploy_aws_infrastructure:
@@ -56,99 +52,61 @@ jobs:
         working-directory: ./terraform/dynamic-ecs/nest-app
         run: terraform ${{ env.TERRAFORM_ACTION }} -auto-approve
 
-    #   - name: Get Terraform output image name 
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./terraform/dynamic-ecs/nest-app
-    #     run: |
-    #       IMAGE_NAME_VALUE=$(terraform output -raw image_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "IMAGE_NAME=$IMAGE_NAME_VALUE" >> $GITHUB_ENV
+      # export Terraform outputs
+      - name: Get Terraform output image name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/nest-app
+        run: |
+          echo "IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output domain name
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       DOMAIN_NAME_VALUE=$(terraform output -raw domain_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "DOMAIN_NAME=$DOMAIN_NAME_VALUE" >> $GITHUB_ENV
+      - name: Get Terraform output image tag
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./iac
+        run: |
+          echo "IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output RDS endpoint
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       RDS_ENDPOINT_VALUE=$(terraform output -raw rds_endpoint | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "RDS_ENDPOINT=$RDS_ENDPOINT_VALUE" >> $GITHUB_ENV
+      - name: Get Terraform output domain name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./iac
+        run: |
+          echo "DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output image tag
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       IMAGE_TAG_VALUE=$(terraform output -raw image_tag | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "IMAGE_TAG=$IMAGE_TAG_VALUE" >> $GITHUB_ENV
+      - name: Get Terraform output RDS endpoint
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./iac
+        run: |
+          echo "RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output private data subnet az1 id
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       PRIVATE_DATA_SUBNET_AZ1_ID_VALUE=$(terraform output -raw private_data_subnet_az1_id | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "PRIVATE_DATA_SUBNET_AZ1_ID=$PRIVATE_DATA_SUBNET_AZ1_ID_VALUE" >> $GITHUB_ENV
+      - name: Get Terraform output task definition name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./iac
+        run: |
+          echo "ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output runner security group id
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       RUNNER_SECURITY_GROUP_ID_VALUE=$(terraform output -raw runner_security_group_id | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "RUNNER_SECURITY_GROUP_ID=$RUNNER_SECURITY_GROUP_ID_VALUE" >> $GITHUB_ENV
+      - name: Get Terraform output ecs cluster name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./iac
+        run: |
+          echo "ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output task definition name
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       TASK_DEFINITION_NAME_VALUE=$(terraform output -raw task_definition_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "TASK_DEFINITION_NAME=$TASK_DEFINITION_NAME_VALUE" >> $GITHUB_ENV
+      - name: Get Terraform output ecs service name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./iac
+        run: |
+          echo "ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)" >> $GITHUB_ENV
 
-    #   - name: Get Terraform output ecs cluster name
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       ECS_CLUSTER_NAME_VALUE=$(terraform output -raw ecs_cluster_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "ECS_CLUSTER_NAME=$ECS_CLUSTER_NAME_VALUE" >> $GITHUB_ENV
-
-    #   - name: Get Terraform output ecs service name
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       ECS_SERVICE_NAME_VALUE=$(terraform output -raw ecs_service_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "ECS_SERVICE_NAME=$ECS_SERVICE_NAME_VALUE" >> $GITHUB_ENV
-
-    #   - name: Get Terraform output environment file name
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       ENVIRONMENT_FILE_NAME_VALUE=$(terraform output -raw environment_file_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "ENVIRONMENT_FILE_NAME=$ENVIRONMENT_FILE_NAME_VALUE" >> $GITHUB_ENV
-
-    #   - name: Get Terraform output env file bucket name
-    #     if: env.TERRAFORM_ACTION == 'apply'
-    #     working-directory: ./iac
-    #     run: |
-    #       ENV_FILE_BUCKET_NAME_VALUE=$(terraform output -raw env_file_bucket_name | grep -Eo "^[^:]+" | tail -n 1)
-    #       echo "ENV_FILE_BUCKET_NAME=$ENV_FILE_BUCKET_NAME_VALUE" >> $GITHUB_ENV
-
-    #   - name: Print GITHUB_ENV contents
-    #     run: cat $GITHUB_ENV
+      - name: Print GITHUB_ENV contents
+        run: cat $GITHUB_ENV
 
     # outputs:
     #   terraform_action: ${{ env.TERRAFORM_ACTION }}
     #   image_name: ${{ env.IMAGE_NAME }}
+    #   image_tag: ${{ env.IMAGE_TAG }}
     #   domain_name: ${{ env.DOMAIN_NAME }}
     #   rds_endpoint: ${{ env.RDS_ENDPOINT }}
-    #   image_tag: ${{ env.IMAGE_TAG }}
-    #   private_data_subnet_az1_id: ${{ env.PRIVATE_DATA_SUBNET_AZ1_ID }}
-    #   runner_security_group_id: ${{ env.RUNNER_SECURITY_GROUP_ID }}
     #   task_definition_name: ${{ env.TASK_DEFINITION_NAME }}
     #   ecs_cluster_name: ${{ env.ECS_CLUSTER_NAME }}
     #   ecs_service_name: ${{ env.ECS_SERVICE_NAME }}
-    #   environment_file_name: ${{ env.ENVIRONMENT_FILE_NAME }}
-    #   env_file_bucket_name: ${{ env.ENV_FILE_BUCKET_NAME }}
 
 
 #   # Create ECR repository
@@ -179,45 +137,6 @@ jobs:
 #           aws ecr create-repository --repository-name ${{ env.IMAGE_NAME }}
 
 
-#   # Start self-hosted EC2 runner
-#   start_runner:
-#     name: Start self-hosted EC2 runner
-#     needs: 
-#       - configure_aws_credentials
-#       - deploy_aws_infrastructure
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Check for running EC2 runner
-#         run: |
-#           instances=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=ec2-github-runner" "Name=instance-state-name,Values=running" --query 'Reservations[].Instances[].InstanceId' --output text)
-
-#           if [ -n "$instances" ]; then
-#             echo "runner-running=true" >> $GITHUB_ENV
-#           else
-#             echo "runner-running=false" >> $GITHUB_ENV
-#           fi
-
-#       - name: Start EC2 runner
-#         if: env.runner-running != 'true'
-#         id: start-ec2-runner
-#         uses: machulav/ec2-github-runner@v2
-#         with:
-#           mode: start 
-#           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-#           ec2-image-id: ami-05a548a3e6fe2f18a
-#           ec2-instance-type: t2.micro
-#           subnet-id: ${{ needs.deploy_aws_infrastructure.outputs.private_data_subnet_az1_id }}
-#           security-group-id: ${{ needs.deploy_aws_infrastructure.outputs.runner_security_group_id }}
-#           aws-resource-tags: > 
-#             [
-#               {"Key": "Name", "Value": "ec2-github-runner"},
-#               {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
-#             ]
-
-#     outputs:
-#       label: ${{ steps.start-ec2-runner.outputs.label }}
-#       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
 
 
 #   # Build and push Docker image to ECR
@@ -248,8 +167,6 @@ jobs:
 #           --build-arg PERSONAL_ACCESS_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }} \
 #           --build-arg GITHUB_USERNAME=${{ env.GITHUB_USERNAME }} \
 #           --build-arg REPOSITORY_NAME=${{ env.REPOSITORY_NAME }} \
-#           --build-arg WEB_FILE_ZIP=${{ env.WEB_FILE_ZIP }} \
-#           --build-arg WEB_FILE_UNZIP=${{ env.WEB_FILE_UNZIP }} \
 #           --build-arg DOMAIN_NAME=${{ env.DOMAIN_NAME }} \
 #           --build-arg RDS_ENDPOINT=${{ env.RDS_ENDPOINT }} \
 #           --build-arg RDS_DB_NAME=${{ secrets.RDS_DB_NAME }} \
@@ -268,102 +185,6 @@ jobs:
 #           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
 #         run: |
 #           docker push ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}
-
-
-#   # Create environment file and export to S3 
-#   export_env_variables:
-#     name: Create environment file and export to S3 
-#     needs:
-#       - configure_aws_credentials
-#       - deploy_aws_infrastructure
-#       - start_runner
-#       - build_and_push_image
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Export environment variable values to file
-#         env:
-#           DOMAIN_NAME: ${{ needs.deploy_aws_infrastructure.outputs.domain_name }}
-#           RDS_ENDPOINT: ${{ needs.deploy_aws_infrastructure.outputs.rds_endpoint }}
-#           ENVIRONMENT_FILE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.environment_file_name }}
-#         run: |
-#           echo "PERSONAL_ACCESS_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }}" > ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "GITHUB_USERNAME=${{ env.GITHUB_USERNAME }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "REPOSITORY_NAME=${{ env.REPOSITORY_NAME }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "WEB_FILE_ZIP=${{ env.WEB_FILE_ZIP }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "WEB_FILE_UNZIP=${{ env.WEB_FILE_UNZIP }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "DOMAIN_NAME=${{ env.DOMAIN_NAME }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "RDS_ENDPOINT=${{ env.RDS_ENDPOINT }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "RDS_DB_NAME=${{ secrets.RDS_DB_NAME }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "RDS_DB_USERNAME=${{ secrets.RDS_DB_USERNAME }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-#           echo "RDS_DB_PASSWORD=${{ secrets.RDS_DB_PASSWORD }}" >> ${{ env.ENVIRONMENT_FILE_NAME }}
-
-#       - name: Upload environment file to S3
-#         env:
-#           ENVIRONMENT_FILE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.environment_file_name }}
-#           ENV_FILE_BUCKET_NAME: ${{ needs.deploy_aws_infrastructure.outputs.env_file_bucket_name }}
-#         run: aws s3 cp ${{ env.ENVIRONMENT_FILE_NAME }} s3://${{ env.ENV_FILE_BUCKET_NAME }}/${{ env.ENVIRONMENT_FILE_NAME }}
-
-
-#   # Migrate data into RDS database with Flyway
-#   migrate_data:
-#     name: Migrate data into RDS database with Flyway
-#     needs:
-#       - deploy_aws_infrastructure
-#       - start_runner
-#       - build_and_push_image
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
-#     runs-on: self-hosted
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v3
-
-#       - name: Download Flyway
-#         run: |
-#           wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${{ env.FLYWAY_VERSION }}/flyway-commandline-${{ env.FLYWAY_VERSION }}-linux-x64.tar.gz | tar xvz && sudo ln -s `pwd`/flyway-${{ env.FLYWAY_VERSION }}/flyway /usr/local/bin 
-
-#       - name: Remove the placeholder (sql) directory
-#         run: |
-#           rm -rf flyway-${{ env.FLYWAY_VERSION }}/sql/
-
-#       - name: Copy the sql folder into the Flyway sub-directory
-#         run: |
-#           cp -r sql flyway-${{ env.FLYWAY_VERSION }}/
-
-#       - name: Run Flyway migrate command
-#         env:
-#           FLYWAY_URL: jdbc:mysql://${{ needs.deploy_aws_infrastructure.outputs.rds_endpoint }}:3306/${{ secrets.RDS_DB_NAME }}
-#           FLYWAY_USER: ${{ secrets.RDS_DB_USERNAME }}
-#           FLYWAY_PASSWORD: ${{ secrets.RDS_DB_PASSWORD }}
-#           FLYWAY_LOCATION: filesystem:sql
-#         working-directory: ./flyway-${{ env.FLYWAY_VERSION }}
-#         run: |
-#           flyway -url=${{ env.FLYWAY_URL }} \
-#             -user=${{ env.FLYWAY_USER }} \
-#             -password=${{ env.FLYWAY_PASSWORD }} \
-#             -locations=${{ env.FLYWAY_LOCATION }} migrate
-
-
-#   # Stop the self-hosted EC2 runner
-#   stop_runner:
-#     name: Stop self-hosted EC2 runner
-#     needs:
-#       - configure_aws_credentials
-#       - deploy_aws_infrastructure
-#       - start_runner
-#       - build_and_push_image
-#       - export_env_variables
-#       - migrate_data
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy' && always() 
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Stop EC2 runner
-#         uses: machulav/ec2-github-runner@v2
-#         with:
-#           mode: stop 
-#           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-#           label: ${{ needs.start_runner.outputs.label }}
-#           ec2-instance-id: ${{ needs.start_runner.outputs.ec2-instance-id }}
 
 
 #   # Create new task definition revision

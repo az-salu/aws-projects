@@ -1,4 +1,4 @@
-# configure aws provider to establish a secure connection between terraform and aws
+# Configure AWS provider to establish a secure connection between Terraform and AWS
 provider "aws" {
   region  = local.region
   
