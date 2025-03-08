@@ -149,7 +149,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Docker image
-        working-directory: ./docker/dynamic-app/nest-app 
+        # working-directory: ./docker/dynamic-app/nest-app 
         env:
           GITHUB_USERNAME: az-salu
           REPOSITORY_NAME: aws-projects
