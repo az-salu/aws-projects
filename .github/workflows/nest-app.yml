@@ -149,6 +149,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Docker image
+        working-directory: ./docker/dynamic-app/nest-app 
         env:
           GITHUB_USERNAME: az-salu
           REPOSITORY_NAME: aws-projects
@@ -167,8 +168,7 @@ jobs:
             --build-arg RDS_DB_USERNAME="${{ secrets.RDS_DB_USERNAME }}" \
             --build-arg RDS_DB_PASSWORD="${{ secrets.RDS_DB_PASSWORD }}" \
             -t "${IMAGE_NAME}:${IMAGE_TAG}" .
-        working-directory: ./docker/dynamic-app/nest-app 
-
+        
       - name: Retag Docker image
         env:
           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
