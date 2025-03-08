@@ -48,10 +48,12 @@ WORKDIR /var/www/html
 # Clone the GitHub repository
 RUN git clone https://${PERSONAL_ACCESS_TOKEN}@github.com/${GITHUB_USERNAME}/${REPOSITORY_NAME}.git .
 
+RUN ls -a  
+
 # Set permissions for web and storage directories
-RUN chmod -R 777 /var/www/html 
-    # && chmod -R 777 /var/www/html/bootstrap/cache/ \
-    # && chmod -R 777 /var/www/html/storage/
+RUN chmod -R 777 /var/www/html \
+    && chmod -R 777 /var/www/html/bootstrap/cache/ \
+    && chmod -R 777 /var/www/html/storage/
 
 # Update .env variables
 RUN sed -i "/^APP_URL=/ s|=.*$|=https://${DOMAIN_NAME}/|" .env \
