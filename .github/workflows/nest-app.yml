@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - 'docker/dynamic-app/nest-app/**'
       - '.github/workflows/nest-app.yml'
       - 'terraform/dynamic-ecs/nest-app/**'
       - 'terraform/dynamic-ecs/infrastructure/**'
@@ -14,9 +15,6 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: us-east-1
   TERRAFORM_ACTION: apply
-#   GITHUB_USERNAME: aosnotes77
-#   REPOSITORY_NAME: application-codes
-
 
 jobs:
   # Configure AWS credentials 
@@ -30,7 +28,6 @@ jobs:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
 
   # Build AWS infrastructure
   deploy_aws_infrastructure:
@@ -110,14 +107,13 @@ jobs:
       ecs_cluster_name: ${{ env.ECS_CLUSTER_NAME }}
       ecs_service_name: ${{ env.ECS_SERVICE_NAME }}
 
-
   # Create ECR repository
   create_ecr_repository:
     name: Create ECR repository
     needs: 
       - configure_aws_credentials
       - deploy_aws_infrastructure
-    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy' 
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -127,59 +123,63 @@ jobs:
         env:
           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
         run: |
-          if ! aws ecr describe-repositories --repository-names "$IMAGE_NAME" &>/dev/null; then
-            echo "Creating ECR repository: $IMAGE_NAME"
-            aws ecr create-repository --repository-name "$IMAGE_NAME"
+          if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
+            echo "Creating ECR repository: ${IMAGE_NAME}"
+            aws ecr create-repository --repository-name "${IMAGE_NAME}"
           else
-            echo "ECR repository $IMAGE_NAME already exists. Skipping creation."
+            echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
           fi
 
+  # Build and push Docker image to ECR
+  build_and_push_image:
+    name: Build and push Docker image to ECR
+    working-directory: ./docker/dynamic-app/nest-app
+    needs:
+      - configure_aws_credentials
+      - deploy_aws_infrastructure
+      - create_ecr_repository
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-#   # Build and push Docker image to ECR
-#   build_and_push_image:
-#     name: Build and push Docker image to ECR
-#     needs:
-#       - configure_aws_credentials
-#       - deploy_aws_infrastructure
-#       - create_ecr_repository
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-#       - name: Login to Amazon ECR
-#         uses: aws-actions/amazon-ecr-login@v2
+      - name: Build Docker image
+        env:
+          GITHUB_USERNAME: az-salu
+          REPOSITORY_NAME: aws-projects
+          DOMAIN_NAME: ${{ needs.deploy_aws_infrastructure.outputs.domain_name }}
+          RDS_ENDPOINT: ${{ needs.deploy_aws_infrastructure.outputs.rds_endpoint }}
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          docker build \
+            --build-arg PERSONAL_ACCESS_TOKEN="${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            --build-arg GITHUB_USERNAME="${GITHUB_USERNAME}" \
+            --build-arg REPOSITORY_NAME="${REPOSITORY_NAME}" \
+            --build-arg DOMAIN_NAME="${DOMAIN_NAME}" \
+            --build-arg RDS_ENDPOINT="${RDS_ENDPOINT}" \
+            --build-arg RDS_DB_NAME="${{ secrets.RDS_DB_NAME }}" \
+            --build-arg RDS_DB_USERNAME="${{ secrets.RDS_DB_USERNAME }}" \
+            --build-arg RDS_DB_PASSWORD="${{ secrets.RDS_DB_PASSWORD }}" \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" .
 
-#       - name: Build Docker image
-#         env:
-#           DOMAIN_NAME: ${{ needs.deploy_aws_infrastructure.outputs.domain_name }}
-#           RDS_ENDPOINT: ${{ needs.deploy_aws_infrastructure.outputs.rds_endpoint }}
-#           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
-#           IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
-#         run: |
-#           docker build \
-#           --build-arg PERSONAL_ACCESS_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }} \
-#           --build-arg GITHUB_USERNAME=${{ env.GITHUB_USERNAME }} \
-#           --build-arg REPOSITORY_NAME=${{ env.REPOSITORY_NAME }} \
-#           --build-arg DOMAIN_NAME=${{ env.DOMAIN_NAME }} \
-#           --build-arg RDS_ENDPOINT=${{ env.RDS_ENDPOINT }} \
-#           --build-arg RDS_DB_NAME=${{ secrets.RDS_DB_NAME }} \
-#           --build-arg RDS_DB_USERNAME=${{ secrets.RDS_DB_USERNAME }} \
-#           --build-arg RDS_DB_PASSWORD=${{ secrets.RDS_DB_PASSWORD }} \
-#           -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+      - name: Retag Docker image
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-#       - name: Retag Docker image
-#         env:
-#           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
-#         run: |
-#           docker tag ${{ env.IMAGE_NAME }} ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}
-
-#       - name: Push Docker Image to Amazon ECR
-#         env:
-#           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
-#         run: |
-#           docker push ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Push Docker Image to Amazon ECR
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          docker push "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 
 #   # Create new task definition revision

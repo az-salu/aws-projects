@@ -11,6 +11,10 @@ output "domain_name" {
   value = var.domain_name
 }
 
+output "record_name" {
+  value = var.record_name
+}
+
 output "rds_endpoint" {
   value = aws_db_instance.database_instance.endpoint
 }

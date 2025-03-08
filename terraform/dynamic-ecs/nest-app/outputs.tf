@@ -8,7 +8,7 @@ output "image_tag" {
 }
 
 output "domain_name" {
-  value = local.domain_name
+  value = join("", [local.record_name, ".", local.domain_name])
 }
 
 output "rds_endpoint" {
