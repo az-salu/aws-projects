@@ -133,7 +133,7 @@ jobs:
   # Build and push Docker image to ECR
   build_and_push_image:
     name: Build and push Docker image to ECR
-    working-directory: ./docker/dynamic-app/nest-app
+    working-directory: docker/dynamic-app/nest-app
     needs:
       - configure_aws_credentials
       - deploy_aws_infrastructure
