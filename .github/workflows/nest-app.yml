@@ -140,8 +140,6 @@ jobs:
     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
     runs-on: ubuntu-latest
     steps:
-      - working-directory: ./docker/dynamic-app/nest-app
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -149,7 +147,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Docker image
-        # working-directory: ./docker/dynamic-app/nest-app 
+        working-directory: ./docker/dynamic-app/nest-app
         env:
           GITHUB_USERNAME: az-salu
           REPOSITORY_NAME: aws-projects
