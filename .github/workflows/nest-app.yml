@@ -150,7 +150,7 @@ jobs:
         working-directory: ./docker/dynamic-app/nest-app
         env:
           GITHUB_USERNAME: az-salu
-          REPOSITORY_NAME: aws-projects
+          REPOSITORY_NAME: nest-app-code
           DOMAIN_NAME: ${{ needs.deploy_aws_infrastructure.outputs.domain_name }}
           RDS_ENDPOINT: ${{ needs.deploy_aws_infrastructure.outputs.rds_endpoint }}
           IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
