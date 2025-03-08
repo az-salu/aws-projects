@@ -133,7 +133,6 @@ jobs:
   # Build and push Docker image to ECR
   build_and_push_image:
     name: Build and push Docker image to ECR
-    working-directory: docker/dynamic-app/nest-app
     needs:
       - configure_aws_credentials
       - deploy_aws_infrastructure
@@ -141,6 +140,8 @@ jobs:
     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
     runs-on: ubuntu-latest
     steps:
+      - working-directory: ./docker/dynamic-app/nest-app
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -166,6 +167,7 @@ jobs:
             --build-arg RDS_DB_USERNAME="${{ secrets.RDS_DB_USERNAME }}" \
             --build-arg RDS_DB_PASSWORD="${{ secrets.RDS_DB_PASSWORD }}" \
             -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+        working-directory: ./docker/dynamic-app/nest-app 
 
       - name: Retag Docker image
         env:
@@ -180,7 +182,6 @@ jobs:
           IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
         run: |
           docker push "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
-
 
 #   # Create new task definition revision
 #   create_td_revision:
