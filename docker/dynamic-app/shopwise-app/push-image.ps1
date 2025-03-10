@@ -4,10 +4,13 @@ $region = "us-east-1"
 $accountId = "651783246143"
 
 # Attempt to describe the repository
-try {
-    $repoExists = aws ecr describe-repositories --repository-names $repoName --region $region
+$repositoryCheck = aws ecr describe-repositories --repository-names $repoName --region $region 2>$null
+$repoExists = $?  # $? contains True if previous command succeeded, False otherwise
+
+# Check if the repository exists
+if ($repoExists) {
     Write-Output "Repository already exists. Skipping creation."
-} catch {
+} else {
     Write-Output "Repository does not exist. Creating repository..."
     aws ecr create-repository --repository-name $repoName --region $region
 }
