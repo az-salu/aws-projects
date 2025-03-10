@@ -32,6 +32,8 @@ override.tf.json
 rentzone.env
 shopwise.env
 chatvia.env
+nest.env
 
+# Ignore build files
 build-image.ps1
 build-image.sh
