@@ -1,0 +1,238 @@
+name: Deploy Chatvia App to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/dynamic-app/chatvia-app/**'
+      - '.github/workflows/chatvia-app.yml'
+      - 'terraform/dynamic-ecs/chatvia-app/**'
+      - 'terraform/dynamic-ecs/infrastructure/**'
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: us-east-1
+  TERRAFORM_ACTION: apply
+
+jobs:
+  # Configure AWS credentials 
+  configure_aws_credentials: 
+    name: Configure AWS credentials
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+  # Build AWS infrastructure
+  deploy_aws_infrastructure:
+    name: Build AWS infrastructure
+    needs: configure_aws_credentials
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository 
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform 
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.1.7
+
+      - name: Run Terraform initialize
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: terraform init 
+
+      - name: Run Terraform apply/destroy
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: terraform ${{ env.TERRAFORM_ACTION }} -auto-approve
+
+      # export Terraform outputs
+      - name: Get Terraform output image name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Get Terraform output image tag
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Get Terraform output domain name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Get Terraform output RDS endpoint
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Get Terraform output task definition name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Get Terraform output ecs cluster name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Get Terraform output ecs service name
+        if: env.TERRAFORM_ACTION == 'apply'
+        working-directory: ./terraform/dynamic-ecs/chatvia-app
+        run: |
+          echo "ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)" >> $GITHUB_ENV
+
+      - name: Print GITHUB_ENV contents
+        run: cat $GITHUB_ENV
+
+    outputs:
+      terraform_action: ${{ env.TERRAFORM_ACTION }}
+      image_name: ${{ env.IMAGE_NAME }}
+      image_tag: ${{ env.IMAGE_TAG }}
+      domain_name: ${{ env.DOMAIN_NAME }}
+      rds_endpoint: ${{ env.RDS_ENDPOINT }}
+      task_definition_name: ${{ env.ECS_TASK_DEFINITION_NAME }}
+      ecs_cluster_name: ${{ env.ECS_CLUSTER_NAME }}
+      ecs_service_name: ${{ env.ECS_SERVICE_NAME }}
+
+  # Create ECR repository
+  create_ecr_repository:
+    name: Create ECR repository
+    needs: 
+      - configure_aws_credentials
+      - deploy_aws_infrastructure
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check and create ECR repository if needed
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+        run: |
+          if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
+            echo "Creating ECR repository: ${IMAGE_NAME}"
+            aws ecr create-repository --repository-name "${IMAGE_NAME}"
+          else
+            echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
+          fi
+
+  # Build and push Docker image to ECR
+  build_and_push_image:
+    name: Build and push Docker image to ECR
+    needs:
+      - configure_aws_credentials
+      - deploy_aws_infrastructure
+      - create_ecr_repository
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        working-directory: ./docker/dynamic-app/chatvia-app
+        env:
+          GITHUB_USERNAME: az-salu
+          REPOSITORY_NAME: chatvia-app-code
+          DOMAIN_NAME: ${{ needs.deploy_aws_infrastructure.outputs.domain_name }}
+          RDS_ENDPOINT: ${{ needs.deploy_aws_infrastructure.outputs.rds_endpoint }}
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          docker build \
+            --build-arg PERSONAL_ACCESS_TOKEN="${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            --build-arg GITHUB_USERNAME="${GITHUB_USERNAME}" \
+            --build-arg REPOSITORY_NAME="${REPOSITORY_NAME}" \
+            --build-arg DOMAIN_NAME="${DOMAIN_NAME}" \
+            --build-arg RDS_ENDPOINT="${RDS_ENDPOINT}" \
+            --build-arg RDS_DB_NAME="${{ secrets.RDS_DB_NAME }}" \
+            --build-arg RDS_DB_USERNAME="${{ secrets.RDS_DB_USERNAME }}" \
+            --build-arg RDS_DB_PASSWORD="${{ secrets.RDS_DB_PASSWORD }}" \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+        
+      - name: Retag Docker image
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+      - name: Push Docker Image to Amazon ECR
+        env:
+          IMAGE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.image_name }}
+          IMAGE_TAG: ${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          docker push "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+  # Create new task definition revision
+  create_task_definition_revision:
+    name: Create new task definition revision
+    needs: 
+      - configure_aws_credentials
+      - deploy_aws_infrastructure 
+      - create_ecr_repository
+      - build_and_push_image
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create new task definition revision
+        env:
+          ECS_FAMILY: ${{ needs.deploy_aws_infrastructure.outputs.task_definition_name }}
+          ECS_IMAGE: ${{ secrets.ECR_REGISTRY }}/${{ needs.deploy_aws_infrastructure.outputs.image_name }}:${{ needs.deploy_aws_infrastructure.outputs.image_tag }}
+        run: |
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition "${ECS_FAMILY}")
+
+          # Update image and remove incompatible fields
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg IMAGE "${ECS_IMAGE}" \
+            '.taskDefinition | .containerDefinitions[0].image = $IMAGE |
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          # Register new task definition and extract revision
+          NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
+
+          # Export new revision
+          echo "NEW_TASK_DEFINITION_REVISION=$NEW_TASK_DEFINITION_REVISION" >> $GITHUB_ENV
+
+    outputs:
+      new_task_definition_revision: ${{ env.NEW_TASK_DEFINITION_REVISION }}
+
+  # Restart ECS Fargate service
+  restart_ecs_service:
+    name: Restart ECS Fargate service
+    needs: 
+      - configure_aws_credentials
+      - deploy_aws_infrastructure 
+      - create_task_definition_revision
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restart ECS service
+        env:
+          ECS_CLUSTER_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_cluster_name }}
+          ECS_SERVICE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_service_name }}
+          TASK_DEFINITION_NAME: ${{ needs.deploy_aws_infrastructure.outputs.task_definition_name }}
+          TASK_DEFINITION_REVISION: ${{ needs.create_task_definition_revision.outputs.new_task_definition_revision }}
+        run: |
+          # Update service with new task definition revision and force deployment
+          aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
+            --task-definition "${TASK_DEFINITION_NAME}:${TASK_DEFINITION_REVISION}" --force-new-deployment
+          
+          # Wait for service to stabilize
+          aws ecs wait services-stable --cluster "${ECS_CLUSTER_NAME}" --services "${ECS_SERVICE_NAME}"
