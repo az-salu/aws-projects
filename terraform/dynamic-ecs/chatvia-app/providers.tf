@@ -1,7 +1,7 @@
 # configure aws provider to establish a secure connection between terraform and aws
 provider "aws" {
   region  = local.region
-  profile = "cloud-projects"
+  # profile = "cloud-projects"
 
   default_tags {
     tags = {
