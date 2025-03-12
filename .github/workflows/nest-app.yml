@@ -14,7 +14,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: us-east-1
-  TERRAFORM_ACTION: destroy
+  TERRAFORM_ACTION: apply
 
 jobs:
   # Configure AWS credentials 
@@ -182,7 +182,7 @@ jobs:
           docker push "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
 
   # Create new task definition revision
-  create_td_revision:
+  create_task_definition_revision:
     name: Create new task definition revision
     needs: 
       - configure_aws_credentials
@@ -205,42 +205,34 @@ jobs:
             del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
 
           # Register new task definition and extract revision
-          NEW_TD_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
+          NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
 
           # Export new revision
-          echo "NEW_TD_REVISION=$NEW_TD_REVISION" >> $GITHUB_ENV
+          echo "NEW_TASK_DEFINITION_REVISION=$NEW_TASK_DEFINITION_REVISION" >> $GITHUB_ENV
 
     outputs:
-      new_td_revision: ${{ env.NEW_TD_REVISION }}
+      new_task_definition_revision: ${{ env.NEW_TASK_DEFINITION_REVISION }}
 
-
-#   # Restart ECS Fargate service
-#   restart_ecs_service:
-#     name: Restart ECS Fargate service
-#     needs: 
-#       - configure_aws_credentials
-#       - deploy_aws_infrastructure 
-#       - create_ecr_repository
-#       - start_runner
-#       - build_and_push_image
-#       - export_env_variables
-#       - migrate_data
-#       - stop_runner
-#       - create_td_revision
-#     if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Update ECS Service
-#         env:
-#           ECS_CLUSTER_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_cluster_name }}
-#           ECS_SERVICE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_service_name }}
-#           TD_NAME: ${{ needs.deploy_aws_infrastructure.outputs.task_definition_name }}
-#         run: |
-#           aws ecs update-service --cluster ${{ env.ECS_CLUSTER_NAME }} --service ${{ env.ECS_SERVICE_NAME }} --task-definition ${{ env.TD_NAME }}:${{ needs.create_td_revision.outputs.new_td_revision }} --force-new-deployment
-
-#       - name: Wait for ECS service to become stable
-#         env:
-#           ECS_CLUSTER_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_cluster_name }}
-#           ECS_SERVICE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_service_name }}
-#         run: |
-#           aws ecs wait services-stable --cluster ${{ env.ECS_CLUSTER_NAME }} --services ${{ env.ECS_SERVICE_NAME }}
+  # Restart ECS Fargate service
+  restart_ecs_service:
+    name: Restart ECS Fargate service
+    needs: 
+      - configure_aws_credentials
+      - deploy_aws_infrastructure 
+      - create_task_definition_revision
+    if: needs.deploy_aws_infrastructure.outputs.terraform_action != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restart ECS service
+        env:
+          ECS_CLUSTER_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_cluster_name }}
+          ECS_SERVICE_NAME: ${{ needs.deploy_aws_infrastructure.outputs.ecs_service_name }}
+          TASK_DEFINITION_NAME: ${{ needs.deploy_aws_infrastructure.outputs.task_definition_name }}
+          TASK_DEFINITION_REVISION: ${{ needs.create_task_definition_revision.outputs.new_task_definition_revision }}
+        run: |
+          # Update service with new task definition revision and force deployment
+          aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
+            --task-definition "${TASK_DEFINITION_NAME}:${TASK_DEFINITION_REVISION}" --force-new-deployment
+          
+          # Wait for service to stabilize
+          aws ecs wait services-stable --cluster "${ECS_CLUSTER_NAME}" --services "${ECS_SERVICE_NAME}"
