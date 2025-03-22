@@ -27,8 +27,8 @@ phases:
 
   build:
     commands:
-      - echo Running Terraform $TERRAFORM_ACTION...
-      - terraform $TERRAFORM_ACTION -auto-approve
+      # - echo Running Terraform $TERRAFORM_ACTION...
+      # - terraform $TERRAFORM_ACTION -auto-approve
       
     #   - |
     #     if [ "$TERRAFORM_ACTION" != "destroy" ]; then
@@ -98,6 +98,6 @@ phases:
       # - echo Build completed on `date`
 
 artifacts:
-  # files:
-  #   - appspec.yml
-  #   - taskdef.json
+  files:
+    - appspec.yml
+    - taskdef.json
