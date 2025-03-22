@@ -26,9 +26,9 @@ phases:
       # - terraform init
 
   build:
-    # commands:
-    #   - echo Running Terraform $TERRAFORM_ACTION...
-    #   - terraform $TERRAFORM_ACTION -auto-approve
+    commands:
+      - echo Running Terraform $TERRAFORM_ACTION...
+      - terraform $TERRAFORM_ACTION -auto-approve
       
     #   - |
     #     if [ "$TERRAFORM_ACTION" != "destroy" ]; then
