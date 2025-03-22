@@ -95,9 +95,8 @@ phases:
 
   post_build:
     commands:
-      # - echo Build completed on `date`
+      # - echo "Build completed on $(date)" > build-summary.txt
 
 artifacts:
   files:
-    - appspec.yml
-    - taskdef.json
+    - build-summary.txt
