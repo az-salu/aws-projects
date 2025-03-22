@@ -1,0 +1,103 @@
+version: 0.2
+
+env:
+  variables:
+    TERRAFORM_ACTION: destroy
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo Installing Terraform...
+      - TF_VERSION=1.1.7
+      - wget https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+      - unzip terraform_${TF_VERSION}_linux_amd64.zip
+      - mv terraform /usr/local/bin/
+      - terraform --version
+
+  pre_build:
+    commands:
+      # - echo "Using AWS Region: $AWS_REGION"
+      # - echo "Using credentials from CodeBuild environment"
+      
+      # - echo Initializing Terraform...
+      # - cd terraform/dynamic-ecs/nest-app
+      # - terraform init
+
+  build:
+    # commands:
+    #   - echo Running Terraform $TERRAFORM_ACTION...
+    #   - terraform $TERRAFORM_ACTION -auto-approve
+      
+    #   - |
+    #     if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+    #       # Export Terraform outputs
+    #       echo "Exporting Terraform outputs..."
+    #       export IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)
+    #       export IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)
+    #       export DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)
+    #       export RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)
+    #       export ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)
+    #       export ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)
+    #       export ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)
+          
+    #       # Create ECR repository if it doesn't exist
+    #       echo "Checking if ECR repository exists..."
+    #       if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
+    #         echo "Creating ECR repository: ${IMAGE_NAME}"
+    #         aws ecr create-repository --repository-name "${IMAGE_NAME}"
+    #       else
+    #         echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
+    #       fi
+          
+    #       # Login to ECR
+    #       echo "Logging in to Amazon ECR..."
+    #       aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+          
+    #       # Build Docker image
+    #       echo "Building Docker image..."
+    #       cd ../../../docker/dynamic-app/nest-app
+    #       docker build \
+    #         --build-arg PERSONAL_ACCESS_TOKEN="${PERSONAL_ACCESS_TOKEN}" \
+    #         --build-arg GITHUB_USERNAME="az-salu" \
+    #         --build-arg REPOSITORY_NAME="nest-app-code" \
+    #         --build-arg DOMAIN_NAME="${DOMAIN_NAME}" \
+    #         --build-arg RDS_ENDPOINT="${RDS_ENDPOINT}" \
+    #         --build-arg RDS_DB_NAME="${RDS_DB_NAME}" \
+    #         --build-arg RDS_DB_USERNAME="${RDS_DB_USERNAME}" \
+    #         --build-arg RDS_DB_PASSWORD="${RDS_DB_PASSWORD}" \
+    #         -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+          
+    #       # Tag and push Docker image
+    #       echo "Tagging and pushing Docker image..."
+    #       docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    #       docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          
+    #       # Create new task definition revision
+    #       echo "Creating new task definition revision..."
+    #       ECS_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    #       TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEFINITION_NAME}")
+    #       NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg IMAGE "${ECS_IMAGE}" \
+    #         '.taskDefinition | .containerDefinitions[0].image = $IMAGE |
+    #         del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+    #       NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
+          
+    #       # Restart ECS service
+    #       echo "Restarting ECS service..."
+    #       aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
+    #         --task-definition "${ECS_TASK_DEFINITION_NAME}:${NEW_TASK_DEFINITION_REVISION}" --force-new-deployment
+          
+    #       # Wait for service to stabilize
+    #       echo "Waiting for service to stabilize..."
+    #       aws ecs wait services-stable --cluster "${ECS_CLUSTER_NAME}" --services "${ECS_SERVICE_NAME}"
+    #     fi
+
+  post_build:
+    commands:
+      # - echo Build completed on `date`
+
+artifacts:
+  # files:
+  #   - appspec.yml
+  #   - taskdef.json
