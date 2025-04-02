@@ -18,12 +18,12 @@ phases:
 
   pre_build:
     commands:
-      # - echo "Using AWS Region: $AWS_REGION"
-      # - echo "Using credentials from CodeBuild environment"
+      - echo "Using AWS Region: $AWS_REGION"
+      - echo "Using credentials from CodeBuild environment"
       
-      # - echo Initializing Terraform...
-      # - cd terraform/dynamic-ecs/nest-app
-      # - terraform init
+      - echo Initializing Terraform...
+      - cd terraform/dynamic-ecs/nest-app
+      - terraform init
 
   build:
     commands:
