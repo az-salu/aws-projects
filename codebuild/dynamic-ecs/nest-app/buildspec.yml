@@ -18,7 +18,7 @@ phases:
 
   pre_build:
     commands:
-      - echo "Using AWS Region: $AWS_REGION"
+      # - echo "Using AWS Region: $AWS_REGION"
       - echo "Using credentials from CodeBuild environment"
       
       - echo Initializing Terraform...
