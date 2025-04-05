@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    TERRAFORM_ACTION: destroy
+    TERRAFORM_ACTION: apply
 
 phases:
   install:
@@ -18,7 +18,7 @@ phases:
 
   pre_build:
     commands:
-      - echo "Using $AWS_REGION AWS Region for deployment"
+      - echo "Deploying to AWS region $AWS_REGION"
       - echo "Using credentials from CodeBuild environment"
       
       - echo Initializing Terraform...
@@ -27,8 +27,8 @@ phases:
 
   build:
     commands:
-      # - echo Running Terraform $TERRAFORM_ACTION...
-      # - terraform $TERRAFORM_ACTION -auto-approve
+      - echo Running Terraform $TERRAFORM_ACTION...
+      - terraform $TERRAFORM_ACTION -auto-approve
       
     #   - |
     #     if [ "$TERRAFORM_ACTION" != "destroy" ]; then
