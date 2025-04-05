@@ -30,9 +30,10 @@ phases:
       # Run Terraform commands based on the action specified
       - echo Running Terraform $TERRAFORM_ACTION...
       - terraform $TERRAFORM_ACTION -auto-approve
+
+      # Export Terraform outputs and store them in CodeBuild environment variables
       - |
         if [ "$TERRAFORM_ACTION" != "destroy" ]; then
-          # Export Terraform outputs
           echo "Exporting Terraform outputs..."
           export IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)
           export IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)
@@ -42,6 +43,7 @@ phases:
           export ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)
           export ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)
         fi
+
     #       # Create ECR repository if it doesn't exist
     #       echo "Checking if ECR repository exists..."
     #       if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
