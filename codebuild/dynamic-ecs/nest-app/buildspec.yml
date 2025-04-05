@@ -89,11 +89,12 @@ phases:
             -t "${IMAGE_NAME}:${IMAGE_TAG}" .
 
           docker image ls
+
+          # Tag and push Docker image
+          echo "Tagging and pushing Docker image..."
+          docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         fi
-    #       # Tag and push Docker image
-    #       echo "Tagging and pushing Docker image..."
-    #       docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-    #       docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
           
     #       # Create new task definition revision
     #       echo "Creating new task definition revision..."
