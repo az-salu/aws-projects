@@ -69,12 +69,11 @@ phases:
           else
             echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
           fi
-        fi
-
           
-    #       # Login to ECR
-    #       echo "Logging in to Amazon ECR..."
-    #       aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+          # Login to ECR
+          echo "Logging in to Amazon ECR..."
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+        fi
           
     #       # Build Docker image
     #       echo "Building Docker image..."
