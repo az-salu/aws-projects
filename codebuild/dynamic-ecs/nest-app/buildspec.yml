@@ -41,7 +41,7 @@ phases:
           export ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)
           export ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)
           export ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)
-          
+        fi
     #       # Create ECR repository if it doesn't exist
     #       echo "Checking if ECR repository exists..."
     #       if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
