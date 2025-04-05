@@ -69,6 +69,8 @@ phases:
           else
             echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
           fi
+        fi
+
           
     #       # Login to ECR
     #       echo "Logging in to Amazon ECR..."
