@@ -58,20 +58,17 @@ phases:
           echo "ECS_SERVICE_NAME = $ECS_SERVICE_NAME"
         fi
 
-      # Uncomment the following block if you want to build and push the Docker image
-      # - |
-      #   if [ "$TERRAFORM_ACTION" != "destroy" ]; then
-    #     echo "Building and pushing Docker image..."
-
-
-    #       # Create ECR repository if it doesn't exist
-    #       echo "Checking if ECR repository exists..."
-    #       if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
-    #         echo "Creating ECR repository: ${IMAGE_NAME}"
-    #         aws ecr create-repository --repository-name "${IMAGE_NAME}"
-    #       else
-    #         echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
-    #       fi
+      # Build and push the Docker image to ECR
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          # Create ECR repository if it doesn't exist
+          echo "Checking if ECR repository exists..."
+          if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
+            echo "Creating ECR repository: ${IMAGE_NAME}"
+            aws ecr create-repository --repository-name "${IMAGE_NAME}"
+          else
+            echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
+          fi
           
     #       # Login to ECR
     #       echo "Logging in to Amazon ECR..."
