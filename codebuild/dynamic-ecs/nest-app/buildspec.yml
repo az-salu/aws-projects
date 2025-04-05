@@ -35,13 +35,28 @@ phases:
       - |
         if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Exporting Terraform outputs..."
+
           export IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)
+          echo $IMAGE_NAME"
+
           export IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)
+          echo $IMAGE_TAG"
+
           export DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)
+          echo $DOMAIN_NAME"
+
           export RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)
+          echo $RDS_ENDPOINT"
+
           export ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)
+          echo $ECS_TASK_DEFINITION_NAME"
+
           export ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)
+          echo $ECS_CLUSTER_NAME"
+
           export ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)
+          echo $ECS_SERVICE_NAME"
+          
         fi
 
     #       # Create ECR repository if it doesn't exist
