@@ -77,9 +77,7 @@ resource "aws_codebuild_project" "codebuild_project" {
   artifacts {
     type      = "S3"
     location  = aws_s3_bucket.codebuild_bucket.bucket
-    path      = "build-artifacts"
     name      = "output"
-    packaging = "ZIP"
   }
 
   # Define the build environment for the CodeBuild project

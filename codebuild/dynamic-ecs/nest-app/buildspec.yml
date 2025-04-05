@@ -95,6 +95,7 @@ phases:
 
   post_build:
     commands:
+      - cd $CODEBUILD_SRC_DIR
       - echo "Build completed on $(date)" > build-summary.txt
 
 artifacts:
