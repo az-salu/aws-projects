@@ -69,12 +69,18 @@ phases:
           else
             echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
           fi
-          
-          # Login to ECR
+        fi
+        
+      # Login to ECR
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Logging in to Amazon ECR..."
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-          
-          # Build Docker image
+        fi
+
+      # Build Docker image
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Building Docker image..."
           cd ../../../docker/dynamic-app/nest-app
           docker build \
@@ -89,22 +95,28 @@ phases:
             -t "${IMAGE_NAME}:${IMAGE_TAG}" .
 
           docker image ls
+        fi
     
-          # Tag and push Docker image
+      # Tag and push Docker image
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Tagging and pushing Docker image..."
           docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
           docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         fi
-          
-    #       # Create new task definition revision
-    #       echo "Creating new task definition revision..."
-    #       ECS_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-    #       TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEFINITION_NAME}")
-    #       NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg IMAGE "${ECS_IMAGE}" \
-    #         '.taskDefinition | .containerDefinitions[0].image = $IMAGE |
-    #         del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-    #       NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
-          
+
+      # Create new task definition revision
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          echo "Creating new task definition revision..."
+          ECS_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEFINITION_NAME}")
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg IMAGE "${ECS_IMAGE}" \
+            '.taskDefinition | .containerDefinitions[0].image = $IMAGE |
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
+        fi
+
     #       # Restart ECS service
     #       echo "Restarting ECS service..."
     #       aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
