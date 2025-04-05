@@ -37,27 +37,32 @@ phases:
           echo "Exporting Terraform outputs..."
 
           export IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)
-          echo $IMAGE_NAME"
+          echo "IMAGE_NAME = $IMAGE_NAME"
 
           export IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)
-          echo $IMAGE_TAG"
+          echo "IMAGE_TAG = $IMAGE_TAG"
 
           export DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)
-          echo $DOMAIN_NAME"
+          echo "DOMAIN_NAME = $DOMAIN_NAME"
 
           export RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)
-          echo $RDS_ENDPOINT"
+          echo "RDS_ENDPOINT = $RDS_ENDPOINT"
 
           export ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)
-          echo $ECS_TASK_DEFINITION_NAME"
+          echo "ECS_TASK_DEFINITION_NAME = $ECS_TASK_DEFINITION_NAME"
 
           export ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)
-          echo $ECS_CLUSTER_NAME"
+          echo "ECS_CLUSTER_NAME = $ECS_CLUSTER_NAME"
 
           export ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)
-          echo $ECS_SERVICE_NAME"
-          
+          echo "ECS_SERVICE_NAME = $ECS_SERVICE_NAME"
         fi
+
+      # Uncomment the following block if you want to build and push the Docker image
+      # - |
+      #   if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+    #     echo "Building and pushing Docker image..."
+
 
     #       # Create ECR repository if it doesn't exist
     #       echo "Checking if ECR repository exists..."
