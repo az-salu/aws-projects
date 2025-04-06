@@ -93,6 +93,7 @@ phases:
           echo "Tagging and pushing Docker image..."
           docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
 
+          echo "Pushing Docker image to ECR..."
           docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         fi
 
@@ -108,15 +109,17 @@ phases:
           NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
         fi
 
-    #       # Restart ECS service
-    #       echo "Restarting ECS service..."
-    #       aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
-    #         --task-definition "${ECS_TASK_DEFINITION_NAME}:${NEW_TASK_DEFINITION_REVISION}" --force-new-deployment
+      # Restart ECS service
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          echo "Restarting ECS service..."
+          aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
+            --task-definition "${ECS_TASK_DEFINITION_NAME}:${NEW_TASK_DEFINITION_REVISION}" --force-new-deployment
           
-    #       # Wait for service to stabilize
-    #       echo "Waiting for service to stabilize..."
-    #       aws ecs wait services-stable --cluster "${ECS_CLUSTER_NAME}" --services "${ECS_SERVICE_NAME}"
-    #     fi
+          # Wait for service to stabilize
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable --cluster "${ECS_CLUSTER_NAME}" --services "${ECS_SERVICE_NAME}"
+        fi
 
   post_build:
     commands:
