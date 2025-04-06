@@ -58,7 +58,7 @@ phases:
           echo "ECS_SERVICE_NAME = $ECS_SERVICE_NAME"
         fi
 
-      # Build and push the Docker image to ECR
+      # Create ECR repository
       - |
         if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           # Create ECR repository if it doesn't exist
@@ -71,16 +71,12 @@ phases:
           fi
         fi
         
-      # Login to ECR
+      # Build and push Docker image to ECR
       - |
         if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Logging in to Amazon ECR..."
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-        fi
 
-      # Build Docker image
-      - |
-        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Building Docker image..."
           cd ../../../docker/dynamic-app/nest-app
           docker build \
@@ -94,18 +90,13 @@ phases:
             --build-arg RDS_DB_PASSWORD="${RDS_DB_PASSWORD}" \
             -t "${IMAGE_NAME}:${IMAGE_TAG}" .
 
-          docker image ls
-        fi
-    
-      # Tag and push Docker image
-      - |
-        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Tagging and pushing Docker image..."
           docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
           docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         fi
 
-      # Create new task definition revision
+      # Create new Task Definition revision
       - |
         if [ "$TERRAFORM_ACTION" != "destroy" ]; then
           echo "Creating new task definition revision..."

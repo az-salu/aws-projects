@@ -51,7 +51,7 @@ jobs:
         working-directory: ./terraform/dynamic-ecs/chatvia-app
         run: terraform ${{ env.TERRAFORM_ACTION }} -auto-approve
 
-      # export Terraform outputs
+      # Export Terraform outputs
       - name: Get Terraform output image name
         if: env.TERRAFORM_ACTION == 'apply'
         working-directory: ./terraform/dynamic-ecs/chatvia-app
