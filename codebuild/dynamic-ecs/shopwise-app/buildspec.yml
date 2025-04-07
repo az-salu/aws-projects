@@ -1,0 +1,131 @@
+version: 0.2
+
+env:
+  variables:
+    TERRAFORM_ACTION: destroy  
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - set -eu
+      - echo "Installing Terraform..."
+      - yum install -y yum-utils
+      - yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+      - sudo yum -y install terraform  # or use "yum install -y terraform-1.1.7" to install a specific version
+      - terraform --version
+
+  pre_build:
+    commands:
+      - echo "Deploying to AWS region $AWS_REGION"
+      - echo "Using credentials from CodeBuild environment"
+      
+      - echo Initializing Terraform...
+      - cd terraform/dynamic-ecs/shopwise-app
+      - terraform init
+
+  build:
+    commands:
+      # Run Terraform commands based on the action specified
+      - echo Running Terraform $TERRAFORM_ACTION...
+      - terraform $TERRAFORM_ACTION -auto-approve
+
+      # Export Terraform outputs and store them in CodeBuild environment variables
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          echo "Exporting Terraform outputs..."
+
+          export IMAGE_NAME=$(terraform output -raw image_name | cut -d ':' -f1)
+          echo "IMAGE_NAME = $IMAGE_NAME"
+
+          export IMAGE_TAG=$(terraform output -raw image_tag | cut -d ':' -f1)
+          echo "IMAGE_TAG = $IMAGE_TAG"
+
+          export DOMAIN_NAME=$(terraform output -raw domain_name | cut -d ':' -f1)
+          echo "DOMAIN_NAME = $DOMAIN_NAME"
+
+          export RDS_ENDPOINT=$(terraform output -raw rds_endpoint | cut -d ':' -f1)
+          echo "RDS_ENDPOINT = $RDS_ENDPOINT"
+
+          export ECS_TASK_DEFINITION_NAME=$(terraform output -raw ecs_task_definition_name | cut -d ':' -f1)
+          echo "ECS_TASK_DEFINITION_NAME = $ECS_TASK_DEFINITION_NAME"
+
+          export ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name | cut -d ':' -f1)
+          echo "ECS_CLUSTER_NAME = $ECS_CLUSTER_NAME"
+
+          export ECS_SERVICE_NAME=$(terraform output -raw ecs_service_name | cut -d ':' -f1)
+          echo "ECS_SERVICE_NAME = $ECS_SERVICE_NAME"
+        fi
+
+      # Create ECR repository
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          # Create ECR repository if it doesn't exist
+          echo "Checking if ECR repository exists..."
+          if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" &>/dev/null; then
+            echo "Creating ECR repository: ${IMAGE_NAME}"
+            aws ecr create-repository --repository-name "${IMAGE_NAME}"
+          else
+            echo "ECR repository ${IMAGE_NAME} already exists. Skipping creation."
+          fi
+        fi
+        
+      # Build and push Docker image to ECR
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          echo "Logging in to Amazon ECR..."
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+          echo "Building Docker image..."
+          cd ../../../docker/dynamic-app/shopwise-app
+          docker build \
+            --build-arg PERSONAL_ACCESS_TOKEN="${PERSONAL_ACCESS_TOKEN}" \
+            --build-arg GITHUB_USERNAME="az-salu" \
+            --build-arg REPOSITORY_NAME="shopwise-app-code" \
+            --build-arg DOMAIN_NAME="${DOMAIN_NAME}" \
+            --build-arg RDS_ENDPOINT="${RDS_ENDPOINT}" \
+            --build-arg RDS_DB_NAME="${RDS_DB_NAME}" \
+            --build-arg RDS_DB_USERNAME="${RDS_DB_USERNAME}" \
+            --build-arg RDS_DB_PASSWORD="${RDS_DB_PASSWORD}" \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+
+          echo "Tagging and pushing Docker image..."
+          docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+          echo "Pushing Docker image to ECR..."
+          docker push "${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        fi
+
+      # Create new Task Definition revision
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          echo "Creating new task definition revision..."
+          ECS_IMAGE="${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition "${ECS_TASK_DEFINITION_NAME}")
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq --arg IMAGE "${ECS_IMAGE}" \
+            '.taskDefinition | .containerDefinitions[0].image = $IMAGE |
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_TASK_DEFINITION_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq '.taskDefinition.revision')
+        fi
+
+      # Restart ECS service
+      - |
+        if [ "$TERRAFORM_ACTION" != "destroy" ]; then
+          echo "Restarting ECS service..."
+          aws ecs update-service --cluster "${ECS_CLUSTER_NAME}" --service "${ECS_SERVICE_NAME}" \
+            --task-definition "${ECS_TASK_DEFINITION_NAME}:${NEW_TASK_DEFINITION_REVISION}" --force-new-deployment
+          
+          # Wait for service to stabilize
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable --cluster "${ECS_CLUSTER_NAME}" --services "${ECS_SERVICE_NAME}"
+        fi
+
+  post_build:
+    commands:
+      - cd $CODEBUILD_SRC_DIR
+      - echo "Build completed on $(date)" > build-summary.txt
+
+artifacts:
+  files:
+    - build-summary.txt
