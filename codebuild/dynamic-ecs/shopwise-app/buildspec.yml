@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    TERRAFORM_ACTION: apply
+    TERRAFORM_ACTION: destroy  # Set to "apply" or "destroy"
 
 phases:
   install:
