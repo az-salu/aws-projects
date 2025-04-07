@@ -181,7 +181,7 @@ jobs:
         run: |
           docker push "${{ secrets.ECR_REGISTRY }}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-  # Create new task definition revision
+  # Create new Task Definition revision
   create_task_definition_revision:
     name: Create new task definition revision
     needs: 
