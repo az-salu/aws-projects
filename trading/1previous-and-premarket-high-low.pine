@@ -1,0 +1,66 @@
+//@version=5
+indicator("Previous and Premarket High/Low", overlay=true)
+
+// ================================
+// Input Declarations
+// ================================
+group1 = "Display Settings"
+premarketHighColorInput = input.color(color.purple, title="Premarket High Color", group=group1)
+premarketLowColorInput = input.color(color.orange, title="Premarket Low Color", group=group1)
+prevDayHighColorInput = input.color(color.green, title="Previous Day High Color", group=group1)
+prevDayLowColorInput = input.color(color.red, title="Previous Day Low Color", group=group1)
+lineWidthInput = input.int(2, title="Line Width", group=group1, minval=1, maxval=5)
+
+
+// ================================
+// Variables to store highs and lows
+// ================================
+var float preMarketHigh = na
+var float preMarketLow = na
+var float prevDayHigh = na
+var float prevDayLow = na
+
+// ================================
+// Initialize variables at the start of the session
+// ================================
+if session.islastbar
+    preMarketHigh := na
+    preMarketLow := na
+    prevDayHigh := na
+    prevDayLow := na
+
+// ================================
+// Update premarket high and low during premarket session
+// ================================
+if session.ispremarket
+    preMarketHigh := na(preMarketHigh) ? high : math.max(preMarketHigh, high)
+    preMarketLow := na(preMarketLow) ? low : math.min(preMarketLow, low)
+
+// ================================
+// Update previous day high and low during regular session
+// ================================
+if not session.ispremarket and not session.islastbar
+    prevDayHigh := na(prevDayHigh) ? high : math.max(prevDayHigh, high)
+    prevDayLow := na(prevDayLow) ? low : math.min(prevDayLow, low)
+
+// ================================
+// Set color transparency based on the session
+// ================================
+premarketColor = session.ispremarket or session.ispostmarket ? premarketHighColorInput : color.new(premarketHighColorInput, 100)
+premarketLowColor = session.ispremarket or session.ispostmarket ? premarketLowColorInput : color.new(premarketLowColorInput, 100)
+prevDayHighColor = session.ispremarket or session.ispostmarket ? prevDayHighColorInput : color.new(prevDayHighColorInput, 100)
+prevDayLowColor = session.ispremarket or session.ispostmarket ? prevDayLowColorInput : color.new(prevDayLowColorInput, 100)
+
+// ================================
+// Plotting the levels on the chart with adjusted transparency
+// ================================
+plot(preMarketHigh, color=premarketColor, linewidth=lineWidthInput, title="Premarket High", style=plot.style_line)
+plot(preMarketLow, color=premarketLowColor, linewidth=lineWidthInput, title="Premarket Low", style=plot.style_line)
+plot(prevDayHigh, color=prevDayHighColor, linewidth=lineWidthInput, title="Previous Day High", style=plot.style_line)
+plot(prevDayLow, color=prevDayLowColor, linewidth=lineWidthInput, title="Previous Day Low", style=plot.style_line)
+
+// ================================
+// Alerts for significant movements
+// ================================
+alertcondition(high == preMarketHigh, title="Premarket High Alert", message="New Premarket High: {{high}}")
+alertcondition(low == preMarketLow, title="Premarket Low Alert", message="New Premarket Low: {{low}}")

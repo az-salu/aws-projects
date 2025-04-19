@@ -1,0 +1,12 @@
+//@version=5
+indicator("First 15-Min Candle Highlight", overlay=true)
+
+// === 9:30–9:45 AM Session in New York Time ===
+start = timestamp("America/New_York", year, month, dayofmonth, 9, 30)
+end   = timestamp("America/New_York", year, month, dayofmonth, 9, 45)
+
+// === Condition: bar is in that time range
+in_first_15 = time >= start and time < end
+
+// === Highlight it
+bgcolor(in_first_15 ? color.new(color.yellow, 60) : na)

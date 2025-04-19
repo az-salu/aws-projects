@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Create a environment variable to store the S3 URI of the zip file containing the website files
 export S3_URI=s3://aosnote-project-web-files/jupiter.zip
 
