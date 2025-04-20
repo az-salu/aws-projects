@@ -1,0 +1,81 @@
+//@version=5
+indicator("Scenario 6 Master: 1000-Tick Chart with CONF + PB + Market Filter", overlay=true, dynamic_requests=true)
+
+// === PREMARKET HIGH/LOW TRACKERS ===
+var float preMarketHigh = na
+var float preMarketLow = na
+if session.islastbar
+    preMarketHigh := na
+    preMarketLow := na
+if session.ispremarket
+    preMarketHigh := na(preMarketHigh) ? high : math.max(preMarketHigh, high)
+    preMarketLow := na(preMarketLow) ? low : math.min(preMarketLow, low)
+
+// === 1000-TICK RANGE VALUES ===
+f15_high = request.security(syminfo.tickerid, "1000T", high[0])
+f15_close = request.security(syminfo.tickerid, "1000T", close[0])
+f15_low = request.security(syminfo.tickerid, "1000T", low[0])
+
+// === VWAP, VOLATILITY, AND RELATIVE VOLUME FILTERS ===
+vwap_value = ta.vwap
+bullish_vwap = close > vwap_value
+bearish_vwap = close < vwap_value
+
+atr = ta.atr(14)
+volatility_threshold = atr * 0.5
+significant_move = math.abs(close - open) > volatility_threshold
+
+rel_volume = volume / ta.sma(volume, 20)
+high_rel_volume = rel_volume > 1.5
+
+// === STRONG PRICE ACTION ===
+strong_price_action = close > close[1] or (close[1] > open[1] and close[2] > open[2])
+strong_bear_action = close < close[1] or (close[1] < open[1] and close[2] < open[2])
+
+// === MARKET SENTIMENT FILTER ===
+spy_green = request.security("SPY", timeframe.period, close > open)
+qqq_green = request.security("QQQ", timeframe.period, close > open)
+market_confirm = spy_green and qqq_green
+
+// === SCENARIO 6 (Bullish) ===
+scenario6 = not na(preMarketHigh) and not na(f15_high) and not na(f15_close) and f15_high > preMarketHigh and f15_close > preMarketHigh and f15_close < f15_high
+
+// === SCENARIO 6B (Bearish) ===
+scenario6_bear = not na(preMarketLow) and not na(f15_low) and not na(f15_close) and f15_low < preMarketLow and f15_close < preMarketLow and f15_close > f15_low
+
+// === CONFIRMATION (Bullish + Bearish) ===
+confirmed = scenario6 and close > preMarketHigh and (high_rel_volume or strong_price_action) and market_confirm and significant_move and bullish_vwap
+confirmed_bear = scenario6_bear and close < preMarketLow and (volume > volume[1] or strong_bear_action) and not market_confirm and significant_move and bearish_vwap
+
+// === PULLBACK BOUNCE (Bullish) ===
+prior_red = close[1] < open[1]
+bounce_candle = close > open and close > preMarketHigh and low <= preMarketHigh and close > high[1]
+pullback_continuation = prior_red and bounce_candle and volume > ta.sma(volume, 5)
+
+// === VOLUME SPIKE + PMH BREAK ===
+avgVol = ta.sma(volume, 20)
+volSpike = volume > avgVol * 1.5
+pmhBreak = close > preMarketHigh
+
+// === FINAL CONFIRMED TRIGGER ===
+trigger = confirmed and pmhBreak and volSpike
+
+// === PLOTS ===
+plotshape(scenario6, location=location.abovebar, style=shape.labelup, color=color.green, text="S6")
+plotshape(confirmed, location=location.abovebar, style=shape.triangleup, color=color.blue, text="CONF")
+plotshape(pullback_continuation, location=location.abovebar, style=shape.triangleup, color=color.orange, text="PB")
+plotshape(scenario6_bear, location=location.belowbar, style=shape.labeldown, color=color.red, text="S6B")
+plotshape(confirmed_bear, location=location.belowbar, style=shape.triangledown, color=color.fuchsia, text="CONF")
+plotshape(trigger, location=location.abovebar, style=shape.labelup, color=color.green, size=size.normal, text="ALERT!")
+
+plot(preMarketHigh, title="Premarket High", color=color.purple, linewidth=1)
+plot(preMarketLow, title="Premarket Low", color=color.orange, linewidth=1)
+plot(vwap_value, title="VWAP", color=color.gray, linewidth=1)
+
+// === ALERT CONDITIONS ===
+alertcondition(trigger, title="S6 CONF + PMH Break + Volume Spike", message="🚨 S6 CONF + PMH Break + Volume Spike on {{ticker}} at {{time}}")
+alertcondition(scenario6, title="Scenario 6 Triggered", message="{{ticker}}: Scenario 6 Fired ✅")
+alertcondition(confirmed, title="Confirmation Fired", message="{{ticker}}: CONF Signal 🔵")
+alertcondition(pullback_continuation, title="Pullback Bounce", message="{{ticker}}: PB Signal 🟠")
+alertcondition(scenario6_bear, title="Scenario 6B Bearish Triggered", message="{{ticker}}: Scenario 6B Bearish ❌")
+alertcondition(confirmed_bear, title="Bearish Confirmation", message="{{ticker}}: Bearish CONF Signal 🔴")
