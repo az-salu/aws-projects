@@ -1,0 +1,102 @@
+//@version=5
+indicator("Scenario 6 - 1000T Breakout Logic + VWAP + Zones", overlay=true, max_lines_count=500)
+
+// === DAILY RESET FOR PREMARKET HIGH/LOW ===
+var float preMarketHigh = na
+var float preMarketLow = na
+
+newDay = dayofmonth != dayofmonth[1] or month != month[1] or year != year[1]
+if newDay
+    preMarketHigh := na
+    preMarketLow := na
+
+// === IDENTIFY PREMARKET RANGE BEFORE 9:30 AM EST ===
+inPremarket = time < timestamp("America/New_York", year, month, dayofmonth, 9, 30)
+
+if inPremarket
+    preMarketHigh := na(preMarketHigh) ? high : math.max(preMarketHigh, high)
+    preMarketLow := na(preMarketLow) ? low : math.min(preMarketLow, low)
+
+// === VWAP ===
+vwap_value = ta.vwap
+plot(vwap_value, title="VWAP", color=color.gray, linewidth=1)
+
+// === SCENARIO 6: Breakout with Profit Taking ===
+brokePMH = not na(preMarketHigh) and high > preMarketHigh
+closedAbovePMH = close > preMarketHigh
+closedBelowHigh = close < high
+
+scenario6_tick = brokePMH and closedAbovePMH and closedBelowHigh
+
+// === TRACK HIGH OF SCENARIO 6 CANDLE FOR BREAKOUT WATCH ===
+var float s6BarHigh = na
+if scenario6_tick
+    s6BarHigh := high
+
+// === BREAKOUT ABOVE S6 HIGH WITH VWAP CONFIRMATION ===
+breakout_above_s6 = not na(s6BarHigh) and close > s6BarHigh and close > vwap_value
+
+// === RETEST AND BOUNCE OFF PMH WITH VWAP CONFIRMATION ===
+pmh_retest_bounce = low <= preMarketHigh and close > preMarketHigh and close > vwap_value
+
+// === OPENING RANGE HIGH/LOW (First 15 Tick Bars After Market Open) ===
+var int barsSinceOpen = 0
+var float openingRangeHigh = na
+var float openingRangeLow = na
+
+marketOpenTime = timestamp("America/New_York", year, month, dayofmonth, 9, 30)
+inMarketSession = time >= marketOpenTime
+
+// Robust daily reset at the first bar of the new day
+isNewDay = ta.change(time("D"))
+if isNewDay
+    barsSinceOpen := 0
+    openingRangeHigh := na
+    openingRangeLow := na
+    s6BarHigh := na
+
+if inMarketSession
+    barsSinceOpen += 1
+    if barsSinceOpen <= 15
+        openingRangeHigh := na(openingRangeHigh) ? high : math.max(openingRangeHigh, high)
+        openingRangeLow := na(openingRangeLow) ? low : math.min(openingRangeLow, low)
+
+// Clamp extreme values (safety for old sessions)
+if barsSinceOpen == 15
+    openingRangeHigh := openingRangeHigh > 300 ? na : openingRangeHigh
+    openingRangeLow := openingRangeLow < 100 ? na : openingRangeLow
+
+// === DRAW ORH/ORL HORIZONTAL LINES (fix for missed 15th bar) ===
+var line orHighLine = na
+var line orLowLine = na
+justFinishedOpeningRange = barsSinceOpen >= 15 and na(orHighLine)
+
+if justFinishedOpeningRange and not na(openingRangeHigh) and not na(openingRangeLow)
+    orHighLine := line.new(x1=bar_index, y1=openingRangeHigh, x2=bar_index + 100, y2=openingRangeHigh, color=color.green, width=2, style=line.style_solid, extend=extend.right)
+    orLowLine := line.new(x1=bar_index, y1=openingRangeLow, x2=bar_index + 100, y2=openingRangeLow, color=color.red, width=2, style=line.style_solid, extend=extend.right)
+
+// === CLEANUP LINES ON NEW DAY ===
+if newDay
+    if not na(orHighLine)
+        line.delete(orHighLine)
+        orHighLine := na
+    if not na(orLowLine)
+        line.delete(orLowLine)
+        orLowLine := na
+
+// === BACKGROUND ZONES ===
+bgcolor(not na(preMarketHigh) and not na(preMarketLow) ? color.new(color.purple, 85) : na, title="Premarket Zone")
+bgcolor(not na(openingRangeHigh) and not na(openingRangeLow) and barsSinceOpen > 15 ? color.new(color.teal, 85) : na, title="Opening Range Zone")
+
+// === PLOTS (Bold Lines) ===
+plot(preMarketHigh, title="Premarket High", color=color.purple, linewidth=2)
+plot(preMarketLow, title="Premarket Low", color=color.orange, linewidth=2)
+
+plotshape(scenario6_tick, location=location.abovebar, style=shape.labelup, color=color.green, text="S6")
+plotshape(breakout_above_s6, location=location.abovebar, style=shape.triangleup, color=color.blue, text="Breakout")
+plotshape(pmh_retest_bounce, location=location.abovebar, style=shape.triangleup, color=color.orange, text="Retest")
+
+// === ALERTS ===
+alertcondition(scenario6_tick, title="Scenario 6 Triggered", message="{{ticker}}: S6 Pattern - High broke PMH, but close under high")
+alertcondition(breakout_above_s6, title="Breakout Entry", message="{{ticker}}: Breakout above Scenario 6 high w/ VWAP")
+alertcondition(pmh_retest_bounce, title="Retest Entry", message="{{ticker}}: Retest and bounce from PMH w/ VWAP")

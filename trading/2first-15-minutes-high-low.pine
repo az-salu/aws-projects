@@ -1,5 +1,5 @@
 //@version=5
-indicator("ORB Levels (Opening Range Style)", overlay = true)
+indicator("First 15 Minutes High/Low (ORB)", overlay = true)
 
 // ===== INPUTS =====
 orbMinutes = input.int(15, "Opening Range (min)", minval = 1)
