@@ -1,0 +1,50 @@
+Subnet Type | Needs Custom Route Table? | Why?
+Public Subnet | ❌ No | Azure adds internet route by default
+Private Subnet | ✅ Yes | You need NAT + manual internet route
+
+
+🔍 In Azure, **AZ assignment happens at the resource level, not the subnet level.
+Unlike AWS, where subnets are tied to specific AZs when created, Azure subnets are not tied to a zone by default. Instead, you choose the zone when you deploy a zonal resource like a VM, NAT Gateway, or Public IP.
+
+dev-vnet
+dev-nat-gateway-az1
+public-ip-nat-az1
+public-az1
+public-az2
+private-app-az1
+private-app-az2
+private-data-az1
+private-data-az2
+
+ssh -i private-key-pair azureuser@your-vm-public-ip
+
+
+
+
+🔍 Where Are Azure’s Automatic Routes?
+✅ 1. Azure Adds "System Routes" Behind the Scenes
+These do not appear in the Route Tables blade, because they are not user-defined — but they do exist and are active at the subnet and network interface level.
+
+To see them, you need to go to the effective routes view.
+
+✅ How to View Routing (Including NAT and Internet Access)
+🔁 Option A: View via Network Interface (NIC)
+This is the most accurate way to inspect routing for a specific VM.
+
+Go to Virtual Machines
+
+Click your VM in the private or public subnet
+
+Under Networking, click on the attached Network Interface
+
+In the NIC pane, under Support + troubleshooting, click:
+🔹 Effective routes
+
+This will show:
+
+System routes (e.g. 0.0.0.0/0 → Internet or → NAT Gateway)
+
+User-defined routes (UDRs) if any were added
+
+Routes to the VNet, BGP, and Azure services
+
