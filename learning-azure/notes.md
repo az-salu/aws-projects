@@ -72,3 +72,15 @@ AWS S3 | Azure Blob Storage
 Bucket name (global unique) | Storage account name (global unique)
 Object key | Blob name
 Bucket path (e.g. folders) | Container name + Blob path
+
+
+
+
+In Azure, Network Security Groups (NSGs) are the equivalent of Security Groups — but:
+
+You associate NSGs to subnets or individual NICs (Network Interfaces), not directly to the VM or load balancer itself.
+
+For Load Balancers, Azure has another concept called NSG + Load Balancer Rules.
+
+For Bastion Hosts, Azure Bastion (the managed service) does not need you to create an NSG yourself unless you're managing your own jumpbox VM manually.
+

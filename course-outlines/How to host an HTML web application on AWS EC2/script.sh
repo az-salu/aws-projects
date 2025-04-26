@@ -24,7 +24,7 @@ unzip jupiter.zip
 # Copy all files from the 'jupiter' directory to the web root directory
 cp -R jupiter/. .
 
-# remove the 'jupiter' directory and the zip file to clean up
+# Remove the 'jupiter' directory and the zip file to clean up
 rm -rf jupiter jupiter.zip
 
 # Enable the Apache HTTP Server to start automatically at system boot

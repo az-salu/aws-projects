@@ -7,7 +7,16 @@
 7. How to Create a Container in an Azure Storage Account
 8. How to Generate SAS token for Container in Azure Storage Account
 9. How to Create a SSH Key in Azure
-10. How to Move an SSH Private Key to Your Home Directory (Windows & Mac)
+10. How to Move an SSH Private Key to Your Home Directory (Windows)
+10. How to Move an SSH Private Key to Your Home Directory (Mac)
+11. How to Create a Network Security Group (NSG) in Azure
+12. How to Add Inbound Security Rules to the NSG in Azure
+13. How to an Associate NSG to the Subnet in Azure
+14. How Create a Virtul Machine in Azure
+15. Explain Sript to Install an HTML on a Virtual Machine
+15. How to SSH into a Virtual Machine in Azure
+16. How to Install an HTML on a Virtual Machine in Azure
+
 
 # Windows (PowerShell or Command Prompt)
 
