@@ -1,32 +1,30 @@
 # Create an Environment Variable for the Blob SAS URL
 export BLOB_SAS_URL=""
 
-# Update the package list
+# Update the packages on the VM
 sudo apt update
 
-# Install Apache
-sudo apt install apache2 -y
+# Install unzip and Apache
+sudo apt install unzip apache2 -y
 
-# # Install unzip if not already installed
-# sudo apt install unzip -y
-
-# Change to the html directory where the website files will be placed
+# Change to the html directory
 cd /var/www/html
 
-# Download the zip file from the specified URL
-wget "$BLOB_SAS_URL"
+# Remove any existing files
+sudo rm -rf *
 
-# Unzip the downloaded zip file
-unzip jupiter.zip
+# Download the zip file
+wget -O jupiter.zip "$BLOB_SAS_URL"
 
-# Copy the contents of the 'jupiter' directory to the current directory
-cp -R jupiter/. .
+# Unzip the downloaded file
+sudo unzip jupiter.zip
 
-# Remove the 'jupiter' directory and the zip file to clean up
-rm -rf jupiter jupiter.zip
+# Copy the contents to the html directory
+sudo cp -R jupiter/. .
 
-# Enable Apache to start on boot
+# Clean up zip and directory
+sudo rm -rf jupiter jupiter.zip
+
+# Enable and start Apache service
 sudo systemctl enable apache2
-
-# Start the Apache service
 sudo systemctl start apache2
