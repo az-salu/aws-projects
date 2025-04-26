@@ -1,0 +1,31 @@
+1. How to Sign Up for a Free Azure Account: Step-by-Step Guide
+2. How to a Free or Pay-As-You-Go Azure Subscription
+3. How to Create an Azure Virtual Network
+4. How to Create Public and Private Subnets in Azure VNet
+5. How to Create a Nat Gateway for Private Subnets in Azure VNet
+6. How to Create an Azure Storage Account
+7. How to Create a Container in an Azure Storage Account
+8. How to Generate SAS token for Container in Azure Storage Account
+9. How to Create a SSH Key in Azure
+10. How to Move an SSH Private Key to Your Home Directory (Windows & Mac)
+
+# Windows (PowerShell or Command Prompt)
+
+# Move the key to the Home directory
+move "$HOME\Downloads\dev-vm-key.pem" "$HOME\dev-vm-key.pem"
+
+
+# Verify if the key exists in the Home directory
+Test-Path "$HOME\dev-vm-key.pem"
+
+
+# macOS / Linux (Terminal)
+
+# Move the key to the Home directory
+mv ~/Downloads/dev-vm-key.pem ~/dev-vm-key.pem
+
+# Set proper file permissions (very important for SSH to work)
+chmod 600 ~/dev-vm-key.pem
+
+# Verify if the key exists in the Home directory
+ls -l ~/dev-vm-key.pem

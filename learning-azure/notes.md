@@ -48,3 +48,27 @@ User-defined routes (UDRs) if any were added
 
 Routes to the VNet, BGP, and Azure services
 
+
+
+
+A Blob Container in Azure is the equivalent of:
+
+A bucket in AWS S3
+
+A folder that stores binary large objects (BLOBs) — like .html, .zip, .jpg, .js, etc.
+
+You upload your files into this container, and they get a unique URL that you can use to download or access them.
+
+
+aosnoteprojectwebfiles
+jupiter
+
+
+
+
+✅ Azure vs AWS Storage Naming
+
+AWS S3 | Azure Blob Storage
+Bucket name (global unique) | Storage account name (global unique)
+Object key | Blob name
+Bucket path (e.g. folders) | Container name + Blob path
