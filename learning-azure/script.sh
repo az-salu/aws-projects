@@ -14,7 +14,7 @@ cd /var/www/html
 sudo rm -rf *
 
 # Download the zip file
-wget -O jupiter.zip "$BLOB_SAS_URL"
+sudo wget -O jupiter.zip "$BLOB_SAS_URL"
 
 # Unzip the downloaded file
 sudo unzip jupiter.zip
