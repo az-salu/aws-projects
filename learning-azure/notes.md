@@ -16,6 +16,7 @@ private-app-az2
 private-data-az1
 private-data-az2
 
+# Command
 ssh -i private-key-pair azureuser@your-vm-public-ip
 
 

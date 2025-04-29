@@ -1,49 +1,74 @@
-1. How to Sign Up for a Free Azure Account: Step-by-Step Guide
-2. How to a Free or Pay-As-You-Go Azure Subscription
-3. How to Create an Azure Virtual Network
-4. How to Create Public and Private Subnets in Azure VNet
-5. How to Create a Nat Gateway for Private Subnets in Azure VNet
-6. How to Create an Azure Storage Account
-7. How to Create a Container in an Azure Storage Account
-8. How to Generate SAS token for Container in Azure Storage Account
-9. How to Create a SSH Key in Azure
+## 📚 Course Title
+How to Host an HTML Application on Azure (Full Step-by-Step Project)
 
-10. How to Move an SSH Private Key to Your Home Directory (Windows)
-# Windows (PowerShell or Command Prompt)
+---
 
-# Move the key to the Home directory
-move "$HOME\Downloads\dev-vm-key.pem" "$HOME\dev-vm-key.pem"
+# 📂 Section 1: Set Up Networking in Azure
 
-# Verify if the key exists in the Home directory
-Test-Path "$HOME\dev-vm-key.pem"
+### 🎬 Intro Video
+In this section, you will learn how to create a secure Azure network. We'll set up a Virtual Network (VNet), public and private subnets, a NAT Gateway for outbound internet access, and a Network Security Group (NSG) to control traffic flow.
 
-10. How to Move an SSH Private Key to Your Home Directory (Mac)
-# macOS / Linux (Terminal)
+### ✅ Video List
+3. How to Create a Virtual Network (VNet) in Azure  
+4. How to Create Public and Private Subnets in Azure VNet  
+5. How to Create a NAT Gateway for Private Subnets in Azure  
+6. How to Create a Network Security Group (NSG) in Azure  
+7. How to Add Inbound Security Rules to a Network Security Group (NSG)  
+8. How to Associate a Network Security Group (NSG) with a Subnet in Azure
 
-# Move the key to the Home directory
-mv ~/Downloads/dev-vm-key.pem ~/dev-vm-key.pem
+---
 
-# Set proper file permissions (very important for SSH to work)
-chmod 600 ~/dev-vm-key.pem
+# 📂 Section 2: Create Azure Storage for Application Code
 
-# Verify if the key exists in the Home directory
-ls -l ~/dev-vm-key.pem
+### 🎬 Intro Video
+In this section, we will create an Azure Storage Account and a Blob Container. This storage will securely host the HTML application files we’ll deploy to our Virtual Machine.
 
-11. How to Create a Network Security Group (NSG) in Azure
-12. How to Add Inbound Security Rules to the NSG in Azure
-13. How to an Associate NSG to the Subnet in Azure
-14. How Create a Virtul Machine in Azure
+### ✅ Video List
+10. How to Create a Storage Account in Azure  
+11. How to Create a Blob Container inside Azure Storage  
+12. How to Generate a SAS Token for Secure Access to Azure Blob Storage
 
-15. Explain Sript to Install an HTML on a Virtual Machine
-Add script
+---
 
-16. How to SSH into a Virtual Machine in Azure
-# Command
-ssh -i private-key-pair azureuser@your-vm-public-ip
+# 📂 Section 3: Launch and Connect to the Virtual Machine
 
-17. How to Install an HTML on a Virtual Machine in Azure
+### 🎬 Intro Video
+In this section, we will create a Linux Virtual Machine on Azure, set up SSH keys for secure access, and connect to it from Windows or Mac.
+
+### ✅ Video List
+13. How to Create an SSH Key Pair in Azure  
+14. How to Move an SSH Private Key to Your Home Directory (Windows)  
+15. How to Move an SSH Private Key to Your Home Directory (Mac)  
+16. How to Create a Virtual Machine (VM) in Azure  
+17. How to SSH into an Azure Virtual Machine Using a Private Key
+
+---
+
+# 📂 Section 4: Deploy and Host the HTML Application
+
+### 🎬 Intro Video
+In this section, we will install Apache, download the HTML files from Azure Storage, and serve the website over the internet.
+
+### ✅ Video List
+18. How the Script Works to Install HTML on an Azure Virtual Machine  
+19. How to Install and Host an HTML Application on an Azure Virtual Machine
+
+---
+
+# 📂 Section 5: Clean Up Azure Resources
+
+### 🎬 Intro Video
+In this final section, we will delete all the Azure resources we created to avoid ongoing charges and keep our subscription clean.
+
+### ✅ Video List
+20. How to Clean Up Azure Resources After Project Completion
 
 
+# 📈 Bonus SEO Tip:
+For your YouTube upload:
+- Use Titles exactly like this.
+- Add descriptions under each video like:
+  Learn how to create a Virtual Network (VNet) in Azure step-by-step. Perfect for beginners building real Azure projects!
 
-
-
+- Use hashtags like:
+#Azure #CloudComputing #DevOps #AzureTraining
