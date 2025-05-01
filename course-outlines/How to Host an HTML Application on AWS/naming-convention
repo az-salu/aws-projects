@@ -1,0 +1,36 @@
+## Naming convention for the resources
+VPC	
+dev-vpc
+
+IGW	
+dev-igw
+
+Subnets
+public-az1
+public-az2	
+private-app-az1	
+private-data-az2
+
+Public Route Table	
+dev-rtb-public
+
+Private Route Table	
+dev-rtb-private
+
+NAT Gateway	
+dev-natgw-az1
+
+Key Pair	
+dev-keypair
+
+Security Group	
+dev-sg
+
+IAM Role	
+dev-iam-role-s3-full-access
+
+EC2 Instance	
+dev-ec2
+
+S3 Bucket	
+dev-aosnote-webfiles

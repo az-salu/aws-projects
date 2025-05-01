@@ -1,0 +1,17 @@
+## Assignments
+Using the knowledge gained from this course, complete the following tasks to deploy the application on an EC2 instance in your default VPC:
+
+1. Manual Installation:  
+    - Download the application code from the video description.  
+    - Manually install the application on an EC2 instance.
+
+2. Automated Installation with S3:  
+    - Create a script to install the application on an EC2 instance using EC2 user data.  
+    - Ensure the script downloads the application code from an S3 bucket.
+
+3. Automated Installation with GitHub:  
+    - Create another script to install the application on an EC2 instance using EC2 user data.  
+    - Ensure the script downloads the application code from a GitHub repository.  
+    - If you do not have a GitHub repository, use the application code download link provided by Azeez in the video description.
+
+These assignments will help reinforce your understanding of deploying applications on AWS EC2.
