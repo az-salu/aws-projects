@@ -23,15 +23,13 @@ In this section, you’ll learn how to build a secure custom VPC from scratch. W
 
 ### ✅ Video List
 1. How to Create a Custom VPC in AWS  
-2. How to Create Public and Private Subnets in AWS  
-3. How to Create and Attach an Internet Gateway to Your VPC  
-4. How to Create a Public Route Table and Add an Internet Route  
-5. How to Associate the Public Route Table with Public Subnets  
-6. Main Route Table in AWS — Explained  
-7. How to Create a NAT Gateway for Private Subnets  
-8. How to Create a Private Route Table and Add Internet Route through the NAT Gateway
-9. How to Associate the Private Route Table with Private Subnets  
-10. Public vs Private Subnets in AWS — What’s the Difference?
+2. How to Create and Attach an Internet Gateway to Your VPC  
+3. How to Create Public and Private Subnets in AWS  
+4. How to Create Public Route Table with Internet Route and Associate Subnets 
+5. Main Route Table in AWS — Explained  
+6. How to Create a NAT Gateway for Private Subnets  
+7. How to Create a Private Route Table and Add Internet Route through the NAT Gateway, with Private Subnets
+8. Public vs Private Subnets in AWS — What’s the Difference?
 
 ---
 
