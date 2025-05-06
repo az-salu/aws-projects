@@ -28,7 +28,7 @@ In this section, you’ll learn how to build a secure custom VPC from scratch. W
 4. How to Create Public Route Table with Internet Route and Associate Subnets 
 5. Main Route Table in AWS — Explained  
 6. How to Create a NAT Gateway for Private Subnets  
-7. How to Create a Private Route Table and Add Internet Route through the NAT Gateway, with Private Subnets
+7. Create Private Route Table with NAT Gateway for Private Subnets
 
 ---
 
@@ -38,8 +38,7 @@ In this section, you’ll learn how to build a secure custom VPC from scratch. W
 In this section, we’ll set up an S3 bucket to store the HTML application code and create an IAM role that gives our EC2 instance secure read access to that bucket.
 
 ### ✅ Video List
-11. How to Create an S3 Bucket in AWS  
-12. How to Upload Application Code to S3  
+11. How to Create an S3 Bucket in AWS and and Upload Application Code
 13. How to Create an IAM Role with S3 Full Access
 
 ---
