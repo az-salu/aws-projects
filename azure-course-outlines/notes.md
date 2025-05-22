@@ -85,3 +85,8 @@ For Load Balancers, Azure has another concept called NSG + Load Balancer Rules.
 
 For Bastion Hosts, Azure Bastion (the managed service) does not need you to create an NSG yourself unless you're managing your own jumpbox VM manually.
 
+
+T
+E
+S
+T
