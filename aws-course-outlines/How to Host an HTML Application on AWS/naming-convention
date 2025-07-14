@@ -9,6 +9,8 @@ Subnets
 public-az1
 public-az2	
 private-app-az1	
+private-app-az2
+private-data-az1
 private-data-az2
 
 Public Route Table	

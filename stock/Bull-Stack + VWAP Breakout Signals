@@ -1,0 +1,269 @@
+//@version=6
+indicator('Bull-Stack + VWAP Breakout Signals v2', overlay=true, max_labels_count=20)
+
+// ───── INPUTS ─────
+// Volume threshold inputs with smart defaults
+megaCapThreshold = input.float(2.5, 'Mega-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For TSLA, NVDA, AAPL, GOOGL, AMZN')
+largeCapThreshold = input.float(1.7, 'Large-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For CRWV, RDDT, SMCI, AMD, PLTR')
+midCapThreshold = input.float(1.3, 'Mid-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For HOOD, HIMS, ROKU, RIVN, TEM')
+smallCapThreshold = input.float(3.0, 'Small-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For MARA, GME, SNAP, SQQQ, SPCE, IONQ, RGTI, ARQQ, QUBT, QBTS')
+defaultThreshold = input.float(1.7, 'Default Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For any other stocks not listed above')
+
+// ───── DYNAMIC VOLUME THRESHOLDS ─────
+// Function to determine volume threshold based on ticker and user inputs
+getVolumeThreshold() =>
+    ticker = syminfo.ticker
+    
+    // Mega-Cap Stocks
+    if ticker == "TSLA" or ticker == "NVDA" or ticker == "AAPL" or ticker == "GOOGL" or ticker == "AMZN"
+        megaCapThreshold
+    // Large-Cap Stocks
+    else if ticker == "CRWV" or ticker == "RDDT" or ticker == "SMCI" or ticker == "AMD" or ticker == "PLTR"
+        largeCapThreshold
+    // Mid-Cap Stocks
+    else if ticker == "HOOD" or ticker == "HIMS" or ticker == "ROKU" or ticker == "RIVN" or ticker == "TEM"
+        midCapThreshold
+    // Small-Cap & Quantum Stocks
+    else if ticker == "MARA" or ticker == "GME" or ticker == "SNAP" or ticker == "SQQQ" or ticker == "SPCE" or ticker == "IONQ" or ticker == "RGTI" or ticker == "ARQQ" or ticker == "QUBT" or ticker == "QBTS"
+        smallCapThreshold
+    // Default fallback
+    else
+        defaultThreshold
+
+dynamicVolumeThreshold = getVolumeThreshold()
+vwapTouchDistance = input.float(0.1, 'VWAP Touch Distance %', minval=0.01, maxval=1.0)
+trendLength = input.int(20, 'Trend Detection Length', minval=5, maxval=50)
+showAllSignals = input.bool(false, 'Show Individual VWAP Signals', group='Display')
+showBullStack = input.bool(true, 'Show Bull-Stack Levels', group='Display')
+showPerfectAlignment = input.bool(false, 'Show Perfect Alignment Labels', group='Display', tooltip='Show 🎯PA labels on chart')
+
+// ───── TIME HELPERS (New York) ─────
+t(hh, mm) => timestamp('America/New_York', year, month, dayofmonth, hh, mm)
+
+pmStart = t(4, 0)
+mktOpen = t(9, 30)
+orbEnd = t(9, 45)
+
+isPremkt = time >= pmStart and time < mktOpen
+inORB = time >= mktOpen and time < orbEnd
+isNewSess = ta.change(time('D')) != 0
+
+// ───── BULL-STACK STRUCTURE (with smooth transitions) ─────
+var float pml = na
+var float pmh = na
+var float orbLow = na
+var float orbHigh = na
+var bool orbLocked = false
+
+// Store previous day's values for smooth transitions
+var float prev_pml = na
+var float prev_pmh = na
+var float prev_orbLow = na
+var float prev_orbHigh = na
+
+if isNewSess
+    // Store previous day's values before resetting
+    prev_pml := pml
+    prev_pmh := pmh
+    if orbLocked
+        prev_orbLow := orbLow
+        prev_orbHigh := orbHigh
+    
+    // Reset for new day
+    pml := na
+    pmh := na
+    orbLow := na
+    orbHigh := na
+    orbLocked := false
+
+if isPremkt
+    pml := na(pml) ? low : math.min(pml, low)
+    pmh := na(pmh) ? high : math.max(pmh, high)
+
+if not orbLocked and inORB
+    orbLow := na(orbLow) ? low : math.min(orbLow, low)
+    orbHigh := na(orbHigh) ? high : math.max(orbHigh, high)
+
+if not orbLocked and time >= orbEnd
+    orbLocked := true
+
+// Use smooth transition values for plotting
+pml_plot = na(pml) ? prev_pml : pml
+pmh_plot = na(pmh) ? prev_pmh : pmh
+orbLow_plot = orbLocked ? orbLow : prev_orbLow
+orbHigh_plot = orbLocked ? orbHigh : prev_orbHigh
+
+orbLocked_current = not na(orbHigh_plot) and time >= orbEnd
+bullStack = orbLocked_current and not na(pmh_plot) and not na(pml_plot) and not na(orbHigh_plot) and not na(orbLow_plot) and orbHigh_plot > pmh_plot and pmh_plot > orbLow_plot and orbLow_plot > pml_plot
+
+// ───── VWAP & TREND ANALYSIS ─────
+vwapValue = ta.vwap(hlc3)
+ma = ta.sma(close, trendLength)
+
+// Trend conditions (only uptrend needed now)
+uptrend = close > ma and ma > ma[5]
+
+// VWAP position
+aboveVwap = close > vwapValue
+belowVwap = close < vwapValue
+vwapDistance = math.abs(close - vwapValue) / close * 100
+nearVwap = vwapDistance <= vwapTouchDistance
+
+// Volume conditions (using dynamic threshold)
+avgVolume = ta.sma(volume, 20)
+currentVolumeRatio = volume / avgVolume
+highVolume = volume > avgVolume * dynamicVolumeThreshold
+
+// Volume classification (using dynamic threshold)
+lowVolumeMultiplier = 0.6
+volumeStatus = currentVolumeRatio >= dynamicVolumeThreshold ? 'HIGH' : currentVolumeRatio <= lowVolumeMultiplier ? 'LOW' : 'NORMAL'
+
+// ───── VWAP SIGNAL DETECTION (only bullish signals) ─────
+crossedAboveVwap = ta.crossover(close, vwapValue)
+prevBelowVwap = close[1] < vwapValue[1]
+
+// Individual VWAP signals (only bullish)
+pullbackSignal = uptrend and prevBelowVwap and aboveVwap and nearVwap and highVolume and close > open
+reclaimSignal = crossedAboveVwap and highVolume and close > open
+
+// ───── PERFECT ALIGNMENT DETECTION ─────
+// All three table conditions are met
+perfectAlignment = bullStack and uptrend and aboveVwap
+perfectAlignmentNew = perfectAlignment and not perfectAlignment[1]
+
+// ───── PREMIUM COMBINED SIGNALS (only bullish) ─────
+// Only fire when Bull-Stack + VWAP conditions align perfectly
+bullishIdeal = bullStack and uptrend and aboveVwap and pullbackSignal
+breakoutSetup = bullStack and uptrend and aboveVwap and reclaimSignal
+
+// Prevent multiple signals per bar
+bullishIdealNew = bullishIdeal and not bullishIdeal[1]
+breakoutSetupNew = breakoutSetup and not breakoutSetup[1]
+
+// ───── PLOTS (using smooth transition values) ─────
+// Bull-Stack levels (optional)
+plot(showBullStack ? orbHigh_plot : na, title='15-H', color=color.green, linewidth=2)
+plot(showBullStack ? orbLow_plot : na, title='15-L', color=color.red, linewidth=2)
+plot(showBullStack ? pmh_plot : na, title='PMH', color=color.purple, linewidth=2)
+plot(showBullStack ? pml_plot : na, title='PML', color=color.orange, linewidth=2)
+
+// VWAP
+plot(vwapValue, color=color.rgb(152, 134, 0), linewidth=1, title='VWAP')
+
+// Individual VWAP signals (optional, only bullish)
+plotshape(showAllSignals and pullbackSignal, style=shape.labelup, location=location.belowbar, 
+          color=color.green, textcolor=color.white, text='PULLBACK\nLONG', size=size.tiny)
+plotshape(showAllSignals and reclaimSignal, style=shape.labelup, location=location.belowbar, 
+          color=color.blue, textcolor=color.white, text='RECLAIM\nLONG', size=size.tiny)
+
+// ───── PREMIUM SIGNALS (only bullish) ─────
+if bullishIdealNew and barstate.isconfirmed
+    label.new(bar_index, low, "BULLISH IDEAL", 
+              style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+
+if breakoutSetupNew and barstate.isconfirmed
+    label.new(bar_index, low, "BREAKOUT SETUP", 
+              style=label.style_label_up, color=color.lime, textcolor=color.black, size=size.small)
+
+// Perfect alignment visual indicator
+if perfectAlignmentNew and barstate.isconfirmed and showPerfectAlignment
+    label.new(bar_index, high, "🎯PA", 
+              style=label.style_label_down, color=color.yellow, textcolor=color.black, size=size.small)
+
+// Highlight first 15-minute ORB window
+bgcolor(inORB ? color.new(color.yellow, 80) : na)
+
+// Special background for premium signals (only bullish)
+bgcolor(bullishIdealNew or breakoutSetupNew ? color.new(color.green, 70) : na)
+
+// Perfect alignment background highlight
+bgcolor(perfectAlignmentNew and showPerfectAlignment ? color.new(color.yellow, 60) : na)
+
+// ───── DYNAMIC LABELS (that stay on screen) ─────
+var label lblPMH = na
+var label lblPML = na
+var label lblHi15 = na
+var label lblLo15 = na
+
+if isNewSess // create fresh labels at the first bar of each day
+    lblPMH := label.new(bar_index, na, '', style=label.style_label_left, color=color.purple, textcolor=color.white, size=size.small)
+    lblPML := label.new(bar_index, na, '', style=label.style_label_left, color=color.orange, textcolor=color.white, size=size.small)
+    lblHi15 := label.new(bar_index, na, '', style=label.style_label_left, color=color.green, textcolor=color.white, size=size.small)
+    lblLo15 := label.new(bar_index, na, '', style=label.style_label_left, color=color.red, textcolor=color.white, size=size.small)
+
+// Update positions & text each bar (using plot values for consistency)
+if showBullStack and not na(pmh_plot) and not na(pml_plot)
+    label.set_xy(lblPMH, bar_index, pmh_plot)
+    label.set_xy(lblPML, bar_index, pml_plot)
+    label.set_text(lblPMH, 'PMH  ' + str.tostring(pmh_plot, format.mintick))
+    label.set_text(lblPML, 'PML  ' + str.tostring(pml_plot, format.mintick))
+
+if showBullStack and not na(orbHigh_plot) and not na(orbLow_plot)
+    label.set_xy(lblHi15, bar_index, orbHigh_plot)
+    label.set_xy(lblLo15, bar_index, orbLow_plot)
+    label.set_text(lblHi15, '15-M High  ' + str.tostring(orbHigh_plot, format.mintick))
+    label.set_text(lblLo15, '15-M Low   ' + str.tostring(orbLow_plot, format.mintick))
+
+// ───── PREMIUM ALERTS (reordered) ─────
+// 1. BREAKOUT SETUP (first)
+alertcondition(breakoutSetupNew and barstate.isconfirmed, 
+               title='🚀 BREAKOUT SETUP', 
+               message='🚨🚨🚨{{ticker}} - BREAKOUT SETUP: ENTER LONG IMMEDIATELY - Price: {{close}}')
+
+// 2. BULLISH IDEAL SETUP (second)
+alertcondition(bullishIdealNew and barstate.isconfirmed, 
+               title='🟢 BULLISH IDEAL SETUP', 
+               message='🚨🚨🚨{{ticker}} - BULLISH IDEAL: ENTER LONG - Price: {{close}}')
+
+// 3. PERFECT ALIGNMENT (third)
+alertcondition(perfectAlignmentNew and barstate.isconfirmed, 
+               title='⭐ PERFECT ALIGNMENT', 
+               message='🎯 {{ticker}} - PERFECT ALIGNMENT: Bull-Stack ACTIVE + Trend UP + Price ABOVE VWAP - Price: {{close}}')
+
+// ───── STATUS TABLE ─────
+var table infoTable = table.new(position.top_right, 2, 5, bgcolor=color.white, border_width=1)
+if barstate.islast
+    table.cell(infoTable, 0, 0, 'STATUS', text_color=color.white, bgcolor=color.navy, text_size=size.small)
+    table.cell(infoTable, 1, 0, 'CONDITION', text_color=color.white, bgcolor=color.navy, text_size=size.small)
+    
+    table.cell(infoTable, 0, 1, 'Bull-Stack', text_color=color.black, text_size=size.small)
+    table.cell(infoTable, 1, 1, bullStack ? 'ACTIVE' : 'WAITING', 
+               text_color=bullStack ? color.green : color.gray, bgcolor=bullStack ? color.new(color.green, 80) : na, text_size=size.small)
+    
+    table.cell(infoTable, 0, 2, 'Trend', text_color=color.black, text_size=size.small)
+    table.cell(infoTable, 1, 2, uptrend ? 'UP' : 'SIDEWAYS', 
+               text_color=uptrend ? color.green : color.gray, text_size=size.small)
+    
+    table.cell(infoTable, 0, 3, 'VWAP Pos', text_color=color.black, text_size=size.small)
+    table.cell(infoTable, 1, 3, aboveVwap ? 'ABOVE' : 'BELOW', 
+               text_color=aboveVwap ? color.green : color.red, text_size=size.small)
+    
+    // Display current volume threshold
+    table.cell(infoTable, 0, 4, 'Vol Threshold', text_color=color.black, text_size=size.small)
+    table.cell(infoTable, 1, 4, str.tostring(dynamicVolumeThreshold, '#.#') + 'x', 
+               text_color=color.blue, text_size=size.small)
+
+// ───── INDIVIDUAL VWAP ALERTS (Optional, only bullish) ─────
+alertcondition(showAllSignals and pullbackSignal and barstate.isconfirmed, 
+               title='VWAP Pullback Long', message='{{ticker}} - Pullback to VWAP - Enter Long')
+alertcondition(showAllSignals and reclaimSignal and barstate.isconfirmed, 
+               title='VWAP Reclaim Long', message='{{ticker}} - VWAP Reclaim - Enter Long')
+
+// Key Requirements for Premium Alerts:
+// Bull-Stack structure must be active (15H > PMH > 15L > PML)
+// High volume (≥ dynamic threshold based on stock type)
+// Uptrend direction
+// Correct VWAP position (above for bullish signals)
+// Specific entry signal (pullback/reclaim)
+// Bar confirmed (not real-time)
+
+// Perfect Alignment Alert:
+// Triggers when all three table conditions are met simultaneously
+// Bull-Stack: ACTIVE + Trend: UP + VWAP Pos: ABOVE
+
+// Dynamic Volume Thresholds by Stock Type:
+// Mega-Cap (TSLA, NVDA, AAPL, GOOGL, AMZN): 2.5x
+// Large-Cap (CRWV, RDDT, SMCI, AMD, PLTR): 1.7x  
+// Mid-Cap (HOOD, HIMS, ROKU, RIVN, TEM): 1.3x
+// Small-Cap/Quantum (MARA, GME, SNAP, SQQQ, SPCE, IONQ, RGTI, ARQQ, QUBT, QBTS): 3.0x
+// Default: 1.7x
