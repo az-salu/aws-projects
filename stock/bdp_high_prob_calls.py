@@ -35,7 +35,7 @@ class PullbackRecoveryScannerV2:
 
     Probability calculation:
     • If model greeks (implied volatility) are available, uses N(d2) from options pricing theory
-        to estimate the chance of finishing ITM at expiration.
+      to estimate the chance of finishing ITM at expiration.
     • If IV is not available, uses the absolute value of delta as a quick probability proxy.
     """
 
@@ -213,8 +213,9 @@ class PullbackRecoveryScannerV2:
             return True, "Intraday gate disabled", None, None
         try:
             intrabars = self._fetch_intraday_bars(contract, duration='2 D', bar=self.intraday_bar)
+            # (1) Clearer message when there aren't enough bars
             if len(intrabars) < self.intraday_period + 1:
-                return True, "Not enough intraday bars; skipping gate", None, None
+                return True, f"Intraday gate skipped: only {len(intrabars)} bars (< {self.intraday_period + 1})", None, None
             iatr = self._wilder_atr(intrabars, period=self.intraday_period)
             iatr_pct = self._atr_pct(iatr, price)
             if iatr_pct is None or iatr_pct < self.intraday_min_atr_pct:
@@ -385,10 +386,10 @@ class PullbackRecoveryScannerV2:
         # Spread penalty: convert to [0,1] with 0% spread = 1, >= max_spread_pct = 0
         spread_penalty = (1.0 - (df['spread_pct'] / self.max_spread_pct)).clip(0, 1)
 
-        # Bonus for preferred delta range (roughly 0.30-0.60): bell around midpoint
-        mid = (self.prefer_delta_min + self.prefer_delta_max) / 2.0
-        width = (self.prefer_delta_max - self.prefer_delta_min) / 2.0 or 0.15
-        delta_pref = df['delta'].fillna(0).apply(lambda d: max(0.0, 1.0 - abs((d - mid) / (width))))
+        # (4) Readability: name midpoint & half-width for delta preference
+        delta_mid = (self.prefer_delta_min + self.prefer_delta_max) / 2.0
+        delta_half = (self.prefer_delta_max - self.prefer_delta_min) / 2.0 or 0.15
+        delta_pref = df['delta'].fillna(0).apply(lambda d: max(0.0, 1.0 - abs((d - delta_mid) / delta_half)))
 
         # Compose score
         df = df.assign(
@@ -451,7 +452,10 @@ class PullbackRecoveryScannerV2:
         if not exp:
             print("❌ No target expirations in desired window")
             return None
-        print(f"📅 Target expiration: {exp}")
+
+        # (5) Human-friendly date alongside yyyymmdd
+        exp_dt = datetime.strptime(exp, "%Y%m%d").strftime("%Y-%m-%d")
+        print(f"📅 Target expiration: {exp} ({exp_dt})")
 
         df = self.get_option_candidates(symbol, price, high_5d, low_5d, chain, exp)
         if df is None or df.empty:
