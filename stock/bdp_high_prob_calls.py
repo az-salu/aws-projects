@@ -4,6 +4,7 @@ import pandas as pd
 import time
 from math import erf, sqrt
 from colorama import Fore, init
+import random  # ← added for tiny pacing jitter
 
 # Initialize colorama for colored console output
 init(autoreset=True)
@@ -34,9 +35,9 @@ class PullbackRecoveryScannerV2:
     • Returns the single best contract per symbol
 
     Probability calculation:
-    • If model greeks (implied volatility) are available, uses N(d2) from options pricing theory
+    • If model greeks (implied volatility) are available, uses N(d2)
       to estimate the chance of finishing ITM at expiration.
-    • If IV is not available, uses the absolute value of delta as a quick probability proxy.
+    • If IV is not available, uses |delta| as a quick probability proxy.
     """
 
     def __init__(
@@ -101,8 +102,13 @@ class PullbackRecoveryScannerV2:
 
     def connect(self):
         print("🔌 Connecting to TWS...")
-        self.ib.connect(self.host, self.port, clientId=self.client_id)
-        print("✅ Connected to TWS")
+        try:
+            self.ib.connect(self.host, self.port, clientId=self.client_id)
+            print("✅ Connected to TWS")
+        except Exception as e:
+            print(f"❌ Could not connect to TWS/IB Gateway on {self.host}:{self.port} (clientId={self.client_id}).")
+            print(f"   Error: {e}")
+            raise
 
     # ---------- Data helpers ----------
     def _fetch_daily_bars(self, contract, days='60 D'):
@@ -145,15 +151,25 @@ class PullbackRecoveryScannerV2:
             contract = ib.Stock(symbol, 'SMART', 'USD')
             self.ib.qualifyContracts(contract)
 
-            # Use snapshot to reduce pacing; no cancel needed
+            # Snapshot to reduce pacing; wait briefly for a tick
             t = self.ib.reqMktData(contract, '', snapshot=True)
-            self.ib.sleep(1.5)
-            price = t.marketPrice() or t.last
-            if not price or price <= 0:
-                return None, None, None, None, None
+            price = None
+            for _ in range(6):  # up to ~3s
+                self.ib.sleep(0.5)
+                price = t.marketPrice() or t.last
+                if price and price > 0:
+                    break
 
             # daily bars for ATR + 5D hi/lo
             bars = self._fetch_daily_bars(contract, days='60 D')
+
+            # Fallback: if snapshot didn't populate, use most recent daily close
+            if (not price or price <= 0) and bars:
+                price = bars[-1].close
+
+            if not price or price <= 0:
+                return None, None, None, None, None
+
             if len(bars) < 15:
                 return price, None, None, None, contract
 
@@ -303,7 +319,7 @@ class PullbackRecoveryScannerV2:
                 ask = t.ask if t.ask and t.ask > 0 else 0
                 last = t.last if t.last and t.last > 0 else None
                 vol = (t.volume or 0)
-                oi = getattr(t, 'optOpenInterest', None) or 0  # will often be 0 intraday; keep soft
+                oi = getattr(t, 'optOpenInterest', None) or 0
                 mid = (bid + ask) / 2 if bid > 0 and ask > 0 else (last or 0)
                 if mid <= 0:
                     continue
@@ -315,14 +331,12 @@ class PullbackRecoveryScannerV2:
                 delta = abs(mg.delta) if (mg and mg.delta is not None) else None
                 iv = mg.impliedVol if (mg and mg.impliedVol and mg.impliedVol > 0) else None
 
-                # time to expiry
                 dtexp = datetime.strptime(c.lastTradeDateOrContractMonth, '%Y%m%d')
                 T_years = max((dtexp - datetime.now()).days, 0) / 365.0
 
-                # probability proxies
                 prob_delta = delta if delta is not None else 0
                 prob_iv = self._prob_itm_from_iv(price, c.strike, T_years, iv) if iv else None
-                prob = prob_iv if prob_iv is not None else prob_delta  # prefer IV-based if available
+                prob = prob_iv if prob_iv is not None else prob_delta
 
                 breakeven = c.strike + mid
                 breakeven_move_needed_pct = ((breakeven / price - 1) * 100)
@@ -356,7 +370,6 @@ class PullbackRecoveryScannerV2:
             except Exception:
                 continue
 
-        # Cancel market data
         for t in tickers:
             try:
                 self.ib.cancelMktData(t.contract)
@@ -370,7 +383,6 @@ class PullbackRecoveryScannerV2:
         if df is None or df.empty:
             return df
 
-        # Liquidity score: combine volume and open interest (safe normalization)
         vol_max = max(df['volume'].max(), 1)
         oi_series = df['open_interest'].fillna(0)
         oi_max = max(oi_series.max(), 1)
@@ -379,18 +391,14 @@ class PullbackRecoveryScannerV2:
         oi_norm = (oi_series / oi_max).clip(0, 1)
         liquidity = 0.7 * vol_norm + 0.3 * oi_norm
 
-        # Probability term: normalize prob_itm in [0,1]; if missing, map delta to [0,1]
         prob_raw = df['prob_itm'].fillna(df['delta'].fillna(0)).clip(0, 1)
 
-        # Spread penalty: convert to [0,1] with 0% spread = 1, >= max_spread_pct = 0
         spread_penalty = (1.0 - (df['spread_pct'] / self.max_spread_pct)).clip(0, 1)
 
-        # Readability: name midpoint & half-width for delta preference
         delta_mid = (self.prefer_delta_min + self.prefer_delta_max) / 2.0
         delta_half = (self.prefer_delta_max - self.prefer_delta_min) / 2.0 or 0.15
         delta_pref = df['delta'].fillna(0).apply(lambda d: max(0.0, 1.0 - abs((d - delta_mid) / delta_half)))
 
-        # Compose score
         df = df.assign(
             prob_component=prob_raw,
             liquidity_component=liquidity,
@@ -415,7 +423,6 @@ class PullbackRecoveryScannerV2:
         if high_5d and low_5d:
             print(f"📊 5D High: ${high_5d:.2f}, Low: ${low_5d:.2f}")
 
-        # Daily ATR filters
         if not bars:
             print("❌ No daily bars for ATR")
             return None
@@ -426,14 +433,12 @@ class PullbackRecoveryScannerV2:
             print("❌ Fails daily ATR filters")
             return None
 
-        # Intraday ATR gate
         ok_intraday, intraday_msg, iatr, iatr_pct = self.passes_intraday_atr_gate(contract, price)
         print(f"⚡ {intraday_msg}")
         if not ok_intraday:
             print("❌ Fails intraday ATR gate")
             return None
 
-        # Pullback/Recovery structure
         pullback_ok, reason = self.is_pullback_recovery_candidate(price, high_5d, low_5d)
         print(f"📋 Structure: {reason}")
         if not pullback_ok:
@@ -441,7 +446,6 @@ class PullbackRecoveryScannerV2:
             return None
         print("✅ Structure good; proceeding to options")
 
-        # Options selection
         chains = self.ib.reqSecDefOptParams(symbol, '', 'STK', contract.conId)
         if not chains:
             print(f"❌ No option chains for {symbol}")
@@ -454,7 +458,6 @@ class PullbackRecoveryScannerV2:
             print("❌ No target expirations in desired window")
             return None
 
-        # Human-friendly date alongside yyyymmdd
         exp_dt = datetime.strptime(exp, "%Y%m%d").strftime("%Y-%m-%d")
         print(f"📅 Target expiration: {exp} ({exp_dt})")
 
@@ -463,13 +466,11 @@ class PullbackRecoveryScannerV2:
             print("❌ No option candidates fetched")
             return None
 
-        # Quality filters (liquidity + spreads + open interest); no price band
         df = df[
             (df['volume'] >= self.min_volume) &
             (df['open_interest'] >= self.min_open_interest) &
             (df['spread_pct'] <= self.max_spread_pct)
         ]
-
         if df.empty:
             print("ℹ️ All candidates filtered out by liquidity/spread/OI.")
             return None
@@ -484,7 +485,6 @@ class PullbackRecoveryScannerV2:
             print("❌ Scoring failed or empty")
             return None
 
-        # Rank: highest score, then lowest breakeven move% and spread
         df_sorted = df.sort_values(['score', 'breakeven_move_needed_pct', 'spread_pct'], ascending=[False, True, True])
         return df_sorted
 
@@ -546,21 +546,61 @@ class PullbackRecoveryScannerV2:
         print("=" * 80)
 
         found = {}
+        summary_rows = []  # collect top pick per symbol for summary CSV
+
         for symbol in symbols:
             try:
                 df = self.get_high_probability_calls(symbol)
                 if df is not None and not df.empty:
                     found[symbol] = df
                     self.show_results(df, symbol)
+
+                    # Save full results per symbol (timestamped)
                     ts = datetime.now().strftime('%Y%m%d_%H%M')
                     fn = f"recovery_hp_{symbol}_{ts}.csv"
                     df.to_csv(fn, index=False)
                     print(f"💾 Saved: {fn}")
-                time.sleep(1)
+
+                    # Capture this symbol's top pick for the summary CSV
+                    best = df.iloc[0]
+                    try:
+                        exp_human = datetime.strptime(str(best['expiration']), "%Y%m%d").strftime("%Y-%m-%d")
+                    except Exception:
+                        exp_human = str(best['expiration'])
+
+                    summary_rows.append({
+                        "symbol": symbol,
+                        "expiration": best['expiration'],
+                        "expiration_human": exp_human,
+                        "strike": float(best['strike']),
+                        "mid_price": float(best['mid_price']),
+                        "prob_itm_or_delta": float(best['prob_itm'] if pd.notna(best.get('prob_itm')) else best.get('delta', 0) or 0),
+                        "delta": float(best['delta'] if pd.notna(best.get('delta')) else 0),
+                        "iv": float(best['iv'] if pd.notna(best.get('iv')) else 0),
+                        "breakeven": float(best['breakeven']),
+                        "breakeven_move_needed_pct": float(best['breakeven_move_needed_pct']),
+                        "profit_at_high_pct": float(best['profit_at_high_pct']),
+                        "spread_pct": float(best['spread_pct']),
+                        "volume": int(best['volume']),
+                        "open_interest": int(best['open_interest']),
+                        "score": float(best['score']),
+                        "current_price": float(best['current_price']),
+                        "high_5d": float(best['high_5d']),
+                        "low_5d": float(best['low_5d']),
+                        "atr_pct": float(best.get('atr_pct') if pd.notna(best.get('atr_pct')) else 0),
+                        "iatr_pct": float(best.get('iatr_pct') if pd.notna(best.get('iatr_pct')) else 0),
+                    })
+
+                # Tiny pacing jitter to be gentle on IB pacing limits
+                time.sleep(0.35 + random.random() * 0.45)
+
             except Exception as e:
                 print(f"❌ {symbol} error: {e}")
+                # still jitter even on errors
+                time.sleep(0.35 + random.random() * 0.45)
                 continue
 
+        # Print console summary
         if found:
             print("\n🏆 SUMMARY (Top Pick per Symbol)")
             print("=" * 60)
@@ -568,9 +608,19 @@ class PullbackRecoveryScannerV2:
                 best = df.iloc[0]
                 print(f"{sym}: ${best['strike']:.2f}C @ ${best['mid_price']:.2f} exp {best['expiration']} | "
                       f"Prob {(best['prob_itm'] if pd.notna(best['prob_itm']) else best['delta']):.2f} | "
-                      f"BE Move {best['breakeven_move_needed_pct']:.2f}% | Spread {best['spread_pct']:.1f}% | Vol {int(best['volume'])}")
+                      f"BE Move {best['breakeven_move_needed_pct']:.2f}% | Spread {best['spread_pct']:.1f}% | "
+                      f"Vol {int(best['volume'])}")
+
+            # Write combined summary CSV (top picks)
+            if summary_rows:
+                ts_sum = datetime.now().strftime('%Y%m%d_%H%M')
+                summary_df = pd.DataFrame(summary_rows)
+                sum_fn = f"recovery_hp_summary_{ts_sum}.csv"
+                summary_df.to_csv(sum_fn, index=False)
+                print(f"\n💾 Summary saved: {sum_fn}")
         else:
             print("\n❌ No candidates found.")
+
         return found
 
     def disconnect(self):

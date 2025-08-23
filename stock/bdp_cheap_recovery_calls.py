@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import time
+import random  # ← jitter for pacing
 from colorama import Fore, init
 
 # Initialize colorama for colored console output
@@ -39,7 +40,7 @@ class PullbackRecoveryScanner:
         # Quality filter params for cheap calls
         min_volume=100,
         max_spread_pct=12.0,        # tighten/loosen as desired
-        min_open_interest=50,       # NEW: avoid dead contracts
+        min_open_interest=50,       # avoid dead contracts
     ):
         self.ib = ib.IB()
         self.host = host
@@ -114,10 +115,13 @@ class PullbackRecoveryScanner:
             contract = ib.Stock(symbol, 'SMART', 'USD')
             self.ib.qualifyContracts(contract)
 
-            # live price (SNAPSHOT: lighter on pacing; no cancel needed)
+            # live price (SNAPSHOT: lighter on pacing; tiny retry if empty)
             t = self.ib.reqMktData(contract, '', snapshot=True)
             self.ib.sleep(1.5)
             price = t.marketPrice() or t.last
+            if not price or price <= 0:
+                self.ib.sleep(0.8)  # ← tiny retry
+                price = t.marketPrice() or t.last
             if not price or price <= 0:
                 return None, None, None, None, None
 
@@ -183,8 +187,9 @@ class PullbackRecoveryScanner:
             return True, "Intraday gate disabled", None, None
         try:
             intrabars = self._fetch_intraday_bars(contract, duration='2 D', bar=self.intraday_bar)
+            # clearer message when there aren't enough bars
             if len(intrabars) < self.intraday_period + 1:
-                return True, "Not enough intraday bars; skipping gate", None, None
+                return True, f"Intraday gate skipped: only {len(intrabars)} bars (< {self.intraday_period + 1})", None, None
             iatr = self._wilder_atr(intrabars, period=self.intraday_period)
             iatr_pct = self._atr_pct(iatr, price)
             if iatr_pct is None or iatr_pct < self.intraday_min_atr_pct:
@@ -337,7 +342,9 @@ class PullbackRecoveryScanner:
         if not exp:
             print("❌ No 1-2 week expirations")
             return None
-        print(f"📅 Target expiration: {exp}")
+        # friendlier expiration printout
+        exp_dt = datetime.strptime(exp, "%Y%m%d").strftime("%Y-%m-%d")
+        print(f"📅 Target expiration: {exp} ({exp_dt})")
 
         strikes = self.get_nearby_strikes(chain.strikes, price)
         if not strikes:
@@ -352,12 +359,12 @@ class PullbackRecoveryScanner:
             df['iatr'] = iatr
             df['iatr_pct'] = iatr_pct
 
-            # QUALITY FILTER (uses configurable params; now includes OI)
+            # QUALITY FILTER (uses configurable params; includes OI)
             df = df[
                 (df['profit_at_high_pct'] > 0) &                 # must profit at 5D high
                 (df['spread_pct'] <= self.max_spread_pct) &      # keep spreads tight
                 (df['volume'] >= self.min_volume) &              # minimum liquidity
-                (df['open_interest'] >= self.min_open_interest)  # NEW: avoid dead contracts
+                (df['open_interest'] >= self.min_open_interest)  # avoid dead contracts
             ]
 
             if df.empty:
@@ -434,22 +441,41 @@ class PullbackRecoveryScanner:
         print("=" * 70)
 
         found = {}
+        best_rows = []  # ← collect per-symbol best for a combined summary CSV
+
         for symbol in symbols:
             try:
                 df = self.get_recovery_options(symbol)
                 if df is not None and not df.empty:
                     found[symbol] = df
                     self.show_recovery_results(df, symbol)
+
+                    # per-symbol CSV
                     ts = datetime.now().strftime('%Y%m%d_%H%M')
-                    fn = f"recovery_cheap_{symbol}_{ts}.csv"  # renamed to avoid collisions
+                    fn = f"recovery_cheap_{symbol}_{ts}.csv"
                     df.to_csv(fn, index=False)
                     print(f"💾 Saved: {fn}")
-                time.sleep(1)
+
+                    # accumulate a single "best" row for combined summary
+                    be_move = (df['breakeven'] / df['current_price'] - 1) * 100
+                    be_move = be_move.replace([pd.NA, pd.NaT], 0).fillna(0)
+                    be_move = be_move.replace([np.inf, -np.inf], 0)
+                    best = df.assign(
+                        breakeven_move_needed_pct=be_move
+                    ).sort_values(
+                        ['breakeven_move_needed_pct', 'breakeven_vs_high', 'spread_pct', 'profit_at_high_pct', 'volume'],
+                        ascending=[True, True, True, False, False]
+                    ).iloc[0]
+                    best_rows.append(best.to_dict())
+
+                # gentle pacing jitter
+                time.sleep(random.uniform(0.8, 1.2))
             except Exception as e:
                 print(f"❌ {symbol} error: {e}")
                 continue
 
         if found:
+            # print summary to console
             print("\n🏆 RECOVERY SUMMARY")
             print("=" * 50)
             for sym, df in found.items():
@@ -468,6 +494,14 @@ class PullbackRecoveryScanner:
                       f"BE Move {best['breakeven_move_needed_pct']:.2f}% | "
                       f"Spread {best['spread_pct']:.1f}% | Vol {best['volume']:.0f} | "
                       f"OI {int(best.get('open_interest', 0))}")
+
+            # write combined summary CSV
+            if best_rows:
+                ts = datetime.now().strftime('%Y%m%d_%H%M')
+                df_summary = pd.DataFrame(best_rows)
+                df_summary.to_csv(f"recovery_cheap_summary_{ts}.csv", index=False)
+                print(f"\n🗂️ Saved combined summary: recovery_cheap_summary_{ts}.csv "
+                      f"({len(df_summary)} symbols)")
         else:
             print("\n❌ No recovery candidates found.")
         return found
@@ -494,7 +528,7 @@ def main():
             intraday_min_atr_pct=0.8,   # ← set to 1.0 on choppy days
             min_volume=100,
             max_spread_pct=12.0,
-            min_open_interest=50,       # NEW: pass OI filter
+            min_open_interest=50,       # pass OI filter
         )
 
         watchlist = [
