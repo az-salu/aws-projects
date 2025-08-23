@@ -2,30 +2,46 @@
 indicator('Bear-Stack + VWAP Breakdown Signals', overlay=true, max_labels_count=20)
 
 // ───── INPUTS ─────
+// EMA settings (turned off by default)
+show_ema = input.bool(false, 'Show EMA', group='EMA Settings')
+ema_length = input.int(20, 'EMA Length', minval=1, maxval=200, group='EMA Settings')
+ema_color = input.color(color.blue, 'EMA Color', group='EMA Settings')
+
 // Volume threshold inputs with smart defaults
-megaCapThreshold = input.float(2.5, 'Mega-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For TSLA, NVDA, AAPL, GOOGL, AMZN')
-largeCapThreshold = input.float(1.7, 'Large-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For CRWV, RDDT, SMCI, AMD, PLTR')
-midCapThreshold = input.float(1.3, 'Mid-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For HOOD, HIMS, ROKU, RIVN, TEM')
-smallCapThreshold = input.float(3.0, 'Small-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For MARA, GME, SNAP, SQQQ, SPCE, IONQ, RGTI, ARQQ, QUBT, QBTS')
+megaCapThreshold = input.float(2.5, 'Mega-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For TSLA, NVDA, AAPL, GOOGL, AMZN, AMD, PLTR, AVGO')
+largeCapThreshold = input.float(1.7, 'Large-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For CRWV, RDDT, SMCI, MU, NBIS, QCOM, HOOD, ROKU, TEM, OKLO, SMR, SOFI, ON, PYPL, UBER, HIMS')
+midCapThreshold = input.float(1.5, 'Mid-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For RMBS, MARA')
+smallCapThreshold = input.float(2.0, 'Small-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For AEHR, PLAB, MXL, NNE')
+quantumThreshold = input.float(1.5, 'Quantum Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For IONQ, RGTI, ARQQ, QUBT, QBTS')
+marketSentimentThreshold = input.float(1.7, 'Market Sentiment Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For SPY, QQQ, TQQQ')
 defaultThreshold = input.float(1.7, 'Default Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For any other stocks not listed above')
+
+// ───── EMA CALCULATION ─────
+ema_value = ta.ema(close, ema_length)
 
 // ───── DYNAMIC VOLUME THRESHOLDS ─────
 // Function to determine volume threshold based on ticker and user inputs
 getVolumeThreshold() =>
     ticker = syminfo.ticker
     
-    // Mega-Cap Stocks
-    if ticker == "TSLA" or ticker == "NVDA" or ticker == "AAPL" or ticker == "GOOGL" or ticker == "AMZN"
+    // Mega-Cap Stocks (≥ $200B)
+    if ticker == "TSLA" or ticker == "NVDA" or ticker == "AAPL" or ticker == "GOOGL" or ticker == "AMZN" or ticker == "AMD" or ticker == "PLTR" or ticker == "AVGO"
         megaCapThreshold
-    // Large-Cap Stocks
-    else if ticker == "CRWV" or ticker == "RDDT" or ticker == "SMCI" or ticker == "AMD" or ticker == "PLTR"
+    // Large-Cap Stocks ($10-200B)
+    else if ticker == "CRWV" or ticker == "RDDT" or ticker == "SMCI" or ticker == "MU" or ticker == "NBIS" or ticker == "QCOM" or ticker == "HOOD" or ticker == "ROKU" or ticker == "TEM" or ticker == "OKLO" or ticker == "SMR" or ticker == "SOFI" or ticker == "ON" or ticker == "PYPL" or ticker == "UBER" or ticker == "HIMS"
         largeCapThreshold
-    // Mid-Cap Stocks
-    else if ticker == "HOOD" or ticker == "HIMS" or ticker == "ROKU" or ticker == "RIVN" or ticker == "TEM"
+    // Mid-Cap Stocks ($2-10B)
+    else if ticker == "RMBS" or ticker == "MARA"
         midCapThreshold
-    // Small-Cap & Quantum Stocks
-    else if ticker == "MARA" or ticker == "GME" or ticker == "SNAP" or ticker == "SQQQ" or ticker == "SPCE" or ticker == "IONQ" or ticker == "RGTI" or ticker == "ARQQ" or ticker == "QUBT" or ticker == "QBTS"
+    // Small-Cap Stocks ($300M-2B)
+    else if ticker == "AEHR" or ticker == "PLAB" or ticker == "MXL" or ticker == "NNE"
         smallCapThreshold
+    // Quantum Stocks
+    else if ticker == "IONQ" or ticker == "RGTI" or ticker == "ARQQ" or ticker == "QUBT" or ticker == "QBTS"
+        quantumThreshold
+    // Market Sentiment (ETFs)
+    else if ticker == "SPY" or ticker == "QQQ" or ticker == "TQQQ"
+        marketSentimentThreshold
     // Default fallback
     else
         defaultThreshold
@@ -136,6 +152,9 @@ breakdownSetup = bearStack and downtrend and belowVwap and highVolume and close 
 breakdownSetupNew = breakdownSetup and not breakdownSetup[1]
 
 // ───── PLOTS (using smooth transition values) ─────
+// EMA line (off by default)
+plot(show_ema ? ema_value : na, title='EMA', color=ema_color, linewidth=1)
+
 // Bear-Stack levels (optional)
 plot(showBearStack ? orbHigh_plot : na, title='15-H', color=color.red, linewidth=2)
 plot(showBearStack ? orbLow_plot : na, title='15-L', color=color.maroon, linewidth=2)
@@ -188,7 +207,8 @@ if showBearStack and not na(orbHigh_plot) and not na(orbLow_plot)
     label.set_text(lblHi15, '15-M High  ' + str.tostring(orbHigh_plot, format.mintick))
     label.set_text(lblLo15, '15-M Low   ' + str.tostring(orbLow_plot, format.mintick))
 
-// ───── PREMIUM ALERTS (only BREAKDOWN SETUP) ─────
+// ───── PREMIUM ALERTS ─────
+// BREAKDOWN SETUP ONLY
 alertcondition(breakdownSetupNew and barstate.isconfirmed, 
                title='🔻 BREAKDOWN SETUP', 
                message='❗❗❗{{ticker}} - BREAKDOWN SETUP: ENTER SHORT IMMEDIATELY - Price: {{close}}')
@@ -216,19 +236,23 @@ if barstate.islast
     table.cell(infoTable, 1, 4, str.tostring(dynamicVolumeThreshold, '#.#') + 'x', 
                text_color=color.blue, text_size=size.small)
 
-// ───── INDIVIDUAL VWAP ALERTS - REMOVED (not needed) ─────
-
-// Key Requirements for BREAKDOWN SETUP Alert:
-// Bear-Stack structure must be active (15H < PMH AND 15L < PML)
-// High volume (≥ dynamic threshold based on stock type)
-// Downtrend direction
-// Price below VWAP
-// Red candle (close < open)
-// Bar confirmed (not real-time)
-
-// Dynamic Volume Thresholds by Stock Type:
-// Mega-Cap (TSLA, NVDA, AAPL, GOOGL, AMZN): 2.5x
-// Large-Cap (CRWV, RDDT, SMCI, AMD, PLTR): 1.7x  
-// Mid-Cap (HOOD, HIMS, ROKU, RIVN, TEM): 1.3x
-// Small-Cap/Quantum (MARA, GME, SNAP, SQQQ, SPCE, IONQ, RGTI, ARQQ, QUBT, QBTS): 3.0x
-// Default: 1.7x
+// ═══════════════════════════════════════════════════════════════
+// Strategy Summary: BEAR-STACK + VWAP BREAKDOWN SIGNALS
+// ═══════════════════════════════════════════════════════════════
+// 📋 SETUP REQUIREMENTS:
+// • Bear-Stack: 15min high < PMH AND 15min low < PML (bearish stacked down formation)
+// • Downtrend confirmed (price < trend MA, MA falling)
+// • Price below VWAP (institutional flow bearish)
+// • Dynamic volume thresholds based on market cap
+//
+// 🎯 ENTRY SIGNAL:
+// • BREAKDOWN SETUP: Bear-Stack + downtrend + below VWAP + high volume + red candle
+//
+// 📊 UPDATED WATCHLIST (Volume Thresholds):
+// • 📈 Market Sentiment (1.7x): SPY, QQQ, TQQQ
+// • 🧭 Mega-Cap (2.5x): TSLA, NVDA, AAPL, GOOGL, AMZN, AMD, PLTR, AVGO
+// • 💼 Large-Cap (1.7x): CRWV, RDDT, SMCI, MU, NBIS, QCOM, HOOD, ROKU, TEM, OKLO, SMR, SOFI, ON, PYPL, UBER, HIMS
+// • 🏗 Mid-Cap (1.5x): RMBS, MARA
+// • 🪙 Small-Cap (2.0x): AEHR, PLAB, MXL, NNE
+// • ⚛️ Quantum (1.5x): IONQ, RGTI, ARQQ, QUBT, QBTS
+// ═══════════════════════════════════════════════════════════════

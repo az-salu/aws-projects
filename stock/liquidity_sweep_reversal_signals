@@ -1,0 +1,216 @@
+//@version=6
+indicator('Liquidity Sweep Reversal Signals', overlay = true)
+
+// Input settings
+show_labels = input.bool(true, 'Show Labels')
+show_alerts = input.bool(true, 'Enable Alerts')
+lookback_bars = input.int(5, 'Lookback Bars for Setup Validation', minval = 1, maxval = 20)
+show_levels = input.bool(false, 'Show PMH/PML/15M Levels')
+show_setup_lines = input.bool(false, 'Show Setup High/Low Lines')
+show_backgrounds = input.bool(true, 'Show Background Highlights')
+
+// EMA settings (turned off by default)
+show_ema = input.bool(false, 'Show EMA', group='EMA Settings')
+ema_length = input.int(20, 'EMA Length', minval=1, maxval=200, group='EMA Settings')
+ema_color = input.color(color.blue, 'EMA Color', group='EMA Settings')
+
+// ───── INPUTS ─────
+// Volume threshold inputs with smart defaults
+megaCapThreshold = input.float(2.5, 'Mega-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For TSLA, NVDA, AAPL, GOOGL, AMZN, AMD, PLTR, AVGO')
+largeCapThreshold = input.float(1.7, 'Large-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For CRWV, RDDT, SMCI, MU, NBIS, QCOM, HOOD, ROKU, TEM, OKLO, SMR, SOFI, ON, PYPL, UBER, HIMS')
+midCapThreshold = input.float(1.5, 'Mid-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For RMBS, MARA')
+smallCapThreshold = input.float(2.0, 'Small-Cap Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For AEHR, PLAB, MXL, NNE')
+quantumThreshold = input.float(1.5, 'Quantum Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For IONQ, RGTI, ARQQ, QUBT, QBTS')
+marketSentimentThreshold = input.float(1.7, 'Market Sentiment Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For SPY, QQQ, TQQQ')
+defaultThreshold = input.float(1.7, 'Default Volume Threshold', minval=1.0, maxval=10.0, group='Volume Thresholds', tooltip='For any other stocks not listed above')
+
+// Time filter settings
+enable_time_filter = input.bool(true, 'Enable Time Filter', group = 'Filters')
+session_start = input.session('0930-1130', 'Signal Session (ET)', group = 'Filters')
+
+// ───── EMA CALCULATION ─────
+ema_value = ta.ema(close, ema_length)
+
+// ───── DYNAMIC VOLUME THRESHOLDS ─────
+// Function to determine volume threshold based on ticker and user inputs
+getVolumeThreshold() =>
+    ticker = syminfo.ticker
+    
+    // Mega-Cap Stocks (≥ $200B)
+    if ticker == "TSLA" or ticker == "NVDA" or ticker == "AAPL" or ticker == "GOOGL" or ticker == "AMZN" or ticker == "AMD" or ticker == "PLTR" or ticker == "AVGO"
+        megaCapThreshold
+    // Large-Cap Stocks ($10-200B)
+    else if ticker == "CRWV" or ticker == "RDDT" or ticker == "SMCI" or ticker == "MU" or ticker == "NBIS" or ticker == "QCOM" or ticker == "HOOD" or ticker == "ROKU" or ticker == "TEM" or ticker == "OKLO" or ticker == "SMR" or ticker == "SOFI" or ticker == "ON" or ticker == "PYPL" or ticker == "UBER" or ticker == "HIMS"
+        largeCapThreshold
+    // Mid-Cap Stocks ($2-10B)
+    else if ticker == "RMBS" or ticker == "MARA"
+        midCapThreshold
+    // Small-Cap Stocks ($300M-2B)
+    else if ticker == "AEHR" or ticker == "PLAB" or ticker == "MXL" or ticker == "NNE"
+        smallCapThreshold
+    // Quantum Stocks
+    else if ticker == "IONQ" or ticker == "RGTI" or ticker == "ARQQ" or ticker == "QUBT" or ticker == "QBTS"
+        quantumThreshold
+    // Market Sentiment (ETFs)
+    else if ticker == "SPY" or ticker == "QQQ" or ticker == "TQQQ"
+        marketSentimentThreshold
+    // Default fallback
+    else
+        defaultThreshold
+
+// ───── TIME HELPERS (New York) ─────
+t(hh, mm) =>
+    timestamp('America/New_York', year, month, dayofmonth, hh, mm)
+
+pmStart = t(4, 0)
+mktOpen = t(9, 30)
+orbEnd = t(9, 45)
+
+isPremkt = time >= pmStart and time < mktOpen
+inORB = time >= mktOpen and time < orbEnd
+isNewSess = ta.change(time('D')) != 0
+
+// ───── PMH/PML/15M STRUCTURE ─────
+var float pml = na
+var float pmh = na
+var float orbLow = na
+var float orbHigh = na
+var bool orbLocked = false
+
+// Store previous day's values for smooth transitions
+var float prev_pml = na
+var float prev_pmh = na
+var float prev_orbLow = na
+var float prev_orbHigh = na
+
+if isNewSess
+    // Store previous day's values before resetting
+    prev_pml := pml
+    prev_pmh := pmh
+    if orbLocked
+        prev_orbLow := orbLow
+        prev_orbHigh := orbHigh
+
+    // Reset for new day
+    pml := na
+    pmh := na
+    orbLow := na
+    orbHigh := na
+    orbLocked := false
+
+if isPremkt
+    pml := na(pml) ? low : math.min(pml, low)
+    pmh := na(pmh) ? high : math.max(pmh, high)
+
+if not orbLocked and inORB
+    orbLow := na(orbLow) ? low : math.min(orbLow, low)
+    orbHigh := na(orbHigh) ? high : math.max(orbHigh, high)
+
+if not orbLocked and time >= orbEnd
+    orbLocked := true
+
+// Use smooth transition values for plotting
+pml_plot = na(pml) ? prev_pml : pml
+pmh_plot = na(pmh) ? prev_pmh : pmh
+orbLow_plot = orbLocked ? orbLow : prev_orbLow
+orbHigh_plot = orbLocked ? orbHigh : prev_orbHigh
+
+orbLocked_current = not na(orbHigh_plot) and not na(orbLow_plot) and time >= orbEnd
+
+// ───── VOLUME AND TIME FILTERS ─────
+// Volume confirmation with dynamic thresholds
+avgVolume = ta.sma(volume, 20)
+currentVolumeThreshold = getVolumeThreshold()
+highVolume = volume > avgVolume * currentVolumeThreshold
+
+// Time filter (9:30 AM - 11:30 AM ET by default)
+inSignalSession = enable_time_filter ? bool(time(timeframe.period, session_start, 'America/New_York')) : true
+
+// Variables to track setup conditions
+var float setup_candle_high = na
+var float setup_candle_low = na
+var int setup_bar_index = na
+var bool setup_active = false
+var bool below_close_confirmed = false
+
+// Check if the first 15-minute candle (ORB) meets initial conditions (liquidity sweep)
+// ORB High above PMH AND ORB Low below PML
+current_setup = orbLocked_current and not na(pmh_plot) and not na(pml_plot) and orbHigh_plot > pmh_plot and orbLow_plot < pml_plot
+
+// When we find a setup (first 15-min candle sweeps both levels), store the ORB low
+if current_setup and not setup_active
+    setup_candle_high := orbHigh_plot
+    setup_candle_low := orbLow_plot
+    setup_bar_index := bar_index
+    setup_active := true
+    below_close_confirmed := false
+
+// Check if we have a close below the first 15-minute candle low (condition 3)
+if setup_active and not below_close_confirmed and close < orbLow_plot
+    below_close_confirmed := true
+
+// Check for signal condition (close above first 15-minute low after below close)
+// Now includes volume and time filters
+signal_condition = setup_active and below_close_confirmed and close > orbLow_plot and close[1] <= orbLow_plot and highVolume and inSignalSession
+
+// Reset setup if too many bars have passed without signal
+if setup_active and bar_index - setup_bar_index > lookback_bars
+    setup_active := false
+    below_close_confirmed := false
+    setup_candle_high := na
+    setup_candle_low := na
+
+// Reset setup after signal triggers
+if signal_condition
+    setup_active := false
+    below_close_confirmed := false
+
+// ───── PLOTTING ─────
+// EMA line
+plot(show_ema ? ema_value : na, title='EMA', color=ema_color, linewidth=1)
+
+// Plot setup candle levels - controlled by show_setup_lines input (default: OFF)
+plot(show_setup_lines and setup_active ? setup_candle_high : na, color = color.green, linewidth = 2, title = 'Setup High')
+plot(show_setup_lines and setup_active ? setup_candle_low : na, color = color.red, linewidth = 2, title = 'Setup Low')
+
+// Plot PMH/PML/15M levels - controlled by show_levels input (default: OFF)
+plot(show_levels ? orbHigh_plot : na, title = '15-M High', color = color.red, linewidth = 2)
+plot(show_levels ? orbLow_plot : na, title = '15-M Low', color = color.maroon, linewidth = 2)
+plot(show_levels ? pmh_plot : na, title = 'PMH', color = color.purple, linewidth = 2)
+plot(show_levels ? pml_plot : na, title = 'PML', color = color.orange, linewidth = 2)
+
+// Background highlight for active setups - controlled by show_backgrounds input (default: ON)
+// bgcolor(show_backgrounds and setup_active and below_close_confirmed ? color.new(color.blue, 95) : na, title = 'Active Setup')
+bgcolor(show_backgrounds and inORB ? color.new(color.yellow, 90) : na, title = '15-Min ORB')
+bgcolor(show_backgrounds and signal_condition ? color.new(color.aqua, 80) : na, title = 'Reversal Signal Candle')
+
+// Only show reversal signal label with cyan colors
+if signal_condition and show_labels
+    label.new(bar_index, low, 'REVERSAL SIGNAL', style = label.style_label_up, color = color.aqua, textcolor = color.black, size = size.small)
+
+// REVERSAL SIGNAL ALERT CONDITION
+alertcondition(signal_condition and barstate.isconfirmed, 
+               title='🔄 LIQUIDITY SWEEP REVERSAL', 
+               message='🔄🔄🔄{{ticker}} - REVERSAL SIGNAL: ENTER LONG IMMEDIATELY - Price: {{close}}')
+
+// ═══════════════════════════════════════════════════════════════
+// Strategy Summary: LIQUIDITY SWEEP REVERSAL
+// ═══════════════════════════════════════════════════════════════
+// 📋 SETUP REQUIREMENTS:
+// • First 15-min candle sweeps BOTH PMH (high) and PML (low) - double liquidity sweep
+// • Price closes below the 15-min low (fake-out confirmation)
+// • Price then reclaims above the 15-min low (reversal confirmation)
+// • Dynamic volume thresholds based on market cap
+// • Time filter: 9:30 AM - 11:30 AM ET (default)
+//
+// 🎯 ENTRY SIGNAL:
+// • REVERSAL SIGNAL: Close above 15-min low after fake-out + high volume + time filter
+//
+// 📊 UPDATED WATCHLIST (Volume Thresholds):
+// • 📈 Market Sentiment (1.7x): SPY, QQQ, TQQQ
+// • 🧭 Mega-Cap (2.5x): TSLA, NVDA, AAPL, GOOGL, AMZN, AMD, PLTR, AVGO
+// • 💼 Large-Cap (1.7x): CRWV, RDDT, SMCI, MU, NBIS, QCOM, HOOD, ROKU, TEM, OKLO, SMR, SOFI, ON, PYPL, UBER, HIMS
+// • 🏗 Mid-Cap (1.5x): RMBS, MARA
+// • 🪙 Small-Cap (2.0x): AEHR, PLAB, MXL, NNE
+// • ⚛️ Quantum (1.5x): IONQ, RGTI, ARQQ, QUBT, QBTS
+// ═══════════════════════════════════════════════════════════════
