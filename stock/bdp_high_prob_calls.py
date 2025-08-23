@@ -20,15 +20,23 @@ def print_banner():
 
 class PullbackRecoveryScannerV2:
     """
-    Variant of the original scanner that:
-      • Keeps the same price/ATR/pullback-recovery gates
-      • Drops the 5-50¢ option price band entirely
-      • Scores and returns the *highest-probability* call contracts instead
-        of only cheap lottos
+    Scans a watchlist of stocks to find high-probability call option trades.
 
-    Probability proxy: uses |delta| as a quick estimator for P(ITM at expiry).
-    We also calculate a simple z-score probability using IV if model greeks are
-    available. Then we score by a blend of probability, liquidity and spread.
+    This scanner:
+    • Checks price volatility using ATR (Average True Range) filters
+    • Looks for a pullback of 3-15% from recent highs with at least 1% recovery
+    • Picks a target expiration date within a short-term window
+    • Examines strike prices near the current stock price
+    • Scores and ranks call options based on:
+        - Probability of finishing in the money (ITM)
+        - Trading volume and open interest (liquidity)
+        - Bid-ask spread (trade cost efficiency)
+    • Returns the single best contract per symbol
+
+    Probability calculation:
+    • If model greeks (implied volatility) are available, uses N(d2) from options pricing theory
+        to estimate the chance of finishing ITM at expiration.
+    • If IV is not available, uses the absolute value of delta as a quick probability proxy.
     """
 
     def __init__(
@@ -268,7 +276,7 @@ class PullbackRecoveryScannerV2:
             import math
             d2 = (math.log(S / K) - 0.5 * (iv ** 2) * T_years) / (iv * math.sqrt(T_years))
             # For calls, P(ITM) ~ N(d2)
-            return 1.0 - self._norm_cdf(d2)
+            return self._norm_cdf(d2)
         except Exception:
             return None
 
@@ -362,9 +370,13 @@ class PullbackRecoveryScannerV2:
         if df is None or df.empty:
             return df
 
-        # Liquidity score: combine volume and (if present) open interest
-        vol_norm = (df['volume'] / (df['volume'].max() if df['volume'].max() > 0 else 1)).clip(0, 1)
-        oi_norm = (df.get('open_interest', pd.Series(0)) / (df.get('open_interest', pd.Series(0)).max() if df.get('open_interest', pd.Series(0)).max() > 0 else 1)).clip(0, 1)
+        # Liquidity score: combine volume and open interest (safe normalization)
+        vol_max = max(df['volume'].max(), 1)
+        oi_series = df['open_interest'].fillna(0)
+        oi_max = max(oi_series.max(), 1)
+
+        vol_norm = (df['volume'] / vol_max).clip(0, 1)
+        oi_norm = (oi_series / oi_max).clip(0, 1)
         liquidity = 0.7 * vol_norm + 0.3 * oi_norm
 
         # Probability term: normalize prob_itm in [0,1]; if missing, map delta to [0,1]
@@ -446,13 +458,15 @@ class PullbackRecoveryScannerV2:
             print("❌ No option candidates fetched")
             return None
 
-        # Quality filters (liquidity + spreads); no price band
-        df = df[(df['volume'] >= self.min_volume) & (df['spread_pct'] <= self.max_spread_pct)]
-        # Prefer delta band but do not require it
-        # df = df[(df['delta'].isna()) | ((df['delta'] >= self.prefer_delta_min) & (df['delta'] <= self.prefer_delta_max))]
+        # Quality filters (liquidity + spreads + open interest); no price band
+        df = df[
+            (df['volume'] >= self.min_volume) &
+            (df['open_interest'] >= self.min_open_interest) &
+            (df['spread_pct'] <= self.max_spread_pct)
+        ]
 
         if df.empty:
-            print("ℹ️ All candidates filtered out by liquidity/spread.")
+            print("ℹ️ All candidates filtered out by liquidity/spread/OI.")
             return None
 
         df['atr'] = atr
@@ -556,7 +570,7 @@ class PullbackRecoveryScannerV2:
 
 def main():
     print_banner()
-    
+
     scanner = None
     try:
         scanner = PullbackRecoveryScannerV2(
@@ -583,17 +597,17 @@ def main():
         watchlist = [
             'SPY', 'QQQ', 'TQQQ',
             'AAPL', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'AMD', 'PLTR', 'AVGO',
-            'META', 'MSFT', 'CRM', 'ORCL', 'CRWV', 'RDDT', 'SMCI', 'MU', 'NBIS', 
-            'QCOM', 'HOOD', 'ROKU', 'TEM', 'OKLO', 'SMR', 'SOFI', 'ON', 
-            'PYPL', 'UBER', 'HIMS', 'INTC', 'AMAT', 'PDD', 'AUR', 'TSM', 
-            'CELH', 'BABA', 'APLD', 'CAVA', 'AFRM', 'PANW', 'KMI', 'RMBS', 
-            'MARA', 'AEHR', 'PLAB', 'MXL', 'NNE', 'IONQ', 'RGTI', 'ARQQ', 
-            'QUBT', 'QBTS', 'BA', 'JPM', 'WMT', 'PG', 'JNJ', 'V', 'MA', 
-            'UNH', 'HD', 'PFE', 'KO', 'PEP', 'XOM', 'CVX', 'T', 'VZ', 
-            'MRK', 'ABT', 'DIS', 'LYFT', 'ZM', 'SHOP', 'SPOT', 'DOCU', 
+            'META', 'MSFT', 'CRM', 'ORCL', 'CRWV', 'RDDT', 'SMCI', 'MU', 'NBIS',
+            'QCOM', 'HOOD', 'ROKU', 'TEM', 'OKLO', 'SMR', 'SOFI', 'ON',
+            'PYPL', 'UBER', 'HIMS', 'INTC', 'AMAT', 'PDD', 'AUR', 'TSM',
+            'CELH', 'BABA', 'APLD', 'CAVA', 'AFRM', 'PANW', 'KMI', 'RMBS',
+            'MARA', 'AEHR', 'PLAB', 'MXL', 'NNE', 'IONQ', 'RGTI', 'ARQQ',
+            'QUBT', 'QBTS', 'BA', 'JPM', 'WMT', 'PG', 'JNJ', 'V', 'MA',
+            'UNH', 'HD', 'PFE', 'KO', 'PEP', 'XOM', 'CVX', 'T', 'VZ',
+            'MRK', 'ABT', 'DIS', 'LYFT', 'ZM', 'SHOP', 'SPOT', 'DOCU',
             'CRWD', 'SNOW', 'DDOG', 'ARKK', 'COIN', 'TGT', 'BULL', 'RKLB',
             'RBLX', 'AI', 'ENPH', 'CAT', 'GS', 'DAL', 'AAL', 'OPEN', 'MDB',
-            'ZS', 'MNDY', 'ETSY', 'WBA', 'SBUX', 'NKE', 'LOW', 'CVS', 'GM', 
+            'ZS', 'MNDY', 'ETSY', 'WBA', 'SBUX', 'NKE', 'LOW', 'CVS', 'GM',
             'LULU',
         ]
 
