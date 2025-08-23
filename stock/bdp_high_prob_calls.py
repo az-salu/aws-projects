@@ -13,7 +13,7 @@ def print_banner():
 {Fore.YELLOW}🚀============================================================🚀
    {Fore.GREEN}🏆  BILLION DOLLAR PLAN  🏆
    {Fore.CYAN}High-Probability Pullback Recovery Call Scanner
-   {Fore.MAGENTA}Looking for the Best Option...
+   {Fore.MAGENTA}Looking for the Best Option Calls...
 {Fore.YELLOW}🚀============================================================🚀
 """
     print(banner)
