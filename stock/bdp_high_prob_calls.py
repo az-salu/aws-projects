@@ -145,11 +145,10 @@ class PullbackRecoveryScannerV2:
             contract = ib.Stock(symbol, 'SMART', 'USD')
             self.ib.qualifyContracts(contract)
 
-            # live price
-            t = self.ib.reqMktData(contract, '', False, False)
-            self.ib.sleep(2)
+            # Use snapshot to reduce pacing; no cancel needed
+            t = self.ib.reqMktData(contract, '', snapshot=True)
+            self.ib.sleep(1.5)
             price = t.marketPrice() or t.last
-            self.ib.cancelMktData(contract)
             if not price or price <= 0:
                 return None, None, None, None, None
 
@@ -213,7 +212,7 @@ class PullbackRecoveryScannerV2:
             return True, "Intraday gate disabled", None, None
         try:
             intrabars = self._fetch_intraday_bars(contract, duration='2 D', bar=self.intraday_bar)
-            # (1) Clearer message when there aren't enough bars
+            # Clearer message when there aren't enough bars
             if len(intrabars) < self.intraday_period + 1:
                 return True, f"Intraday gate skipped: only {len(intrabars)} bars (< {self.intraday_period + 1})", None, None
             iatr = self._wilder_atr(intrabars, period=self.intraday_period)
@@ -386,7 +385,7 @@ class PullbackRecoveryScannerV2:
         # Spread penalty: convert to [0,1] with 0% spread = 1, >= max_spread_pct = 0
         spread_penalty = (1.0 - (df['spread_pct'] / self.max_spread_pct)).clip(0, 1)
 
-        # (4) Readability: name midpoint & half-width for delta preference
+        # Readability: name midpoint & half-width for delta preference
         delta_mid = (self.prefer_delta_min + self.prefer_delta_max) / 2.0
         delta_half = (self.prefer_delta_max - self.prefer_delta_min) / 2.0 or 0.15
         delta_pref = df['delta'].fillna(0).apply(lambda d: max(0.0, 1.0 - abs((d - delta_mid) / delta_half)))
@@ -447,13 +446,15 @@ class PullbackRecoveryScannerV2:
         if not chains:
             print(f"❌ No option chains for {symbol}")
             return None
-        chain = chains[0]
+        # Choose the richest chain (most strikes)
+        chain = max(chains, key=lambda c: len(c.strikes) if c.strikes else 0)
+
         exp = self._target_expiration(chain.expirations)
         if not exp:
             print("❌ No target expirations in desired window")
             return None
 
-        # (5) Human-friendly date alongside yyyymmdd
+        # Human-friendly date alongside yyyymmdd
         exp_dt = datetime.strptime(exp, "%Y%m%d").strftime("%Y-%m-%d")
         print(f"📅 Target expiration: {exp} ({exp_dt})")
 

@@ -12,7 +12,7 @@ def print_banner():
     banner = f"""
 {Fore.YELLOW}🚀============================================================🚀
    {Fore.GREEN}🏆  BILLION DOLLAR PLAN  🏆
-   {Fore.CYAN}High-Probability Pullback Recovery Call Scanner
+   {Fore.CYAN}Cheap Pullback Recovery Call Scanner
    {Fore.MAGENTA}Looking for the Best Cheap Option Calls...
 {Fore.YELLOW}🚀============================================================🚀
 """
@@ -39,6 +39,7 @@ class PullbackRecoveryScanner:
         # Quality filter params for cheap calls
         min_volume=100,
         max_spread_pct=12.0,        # tighten/loosen as desired
+        min_open_interest=50,       # NEW: avoid dead contracts
     ):
         self.ib = ib.IB()
         self.host = host
@@ -58,13 +59,19 @@ class PullbackRecoveryScanner:
         # Quality filters (configurable)
         self.min_volume = int(min_volume)
         self.max_spread_pct = float(max_spread_pct)
+        self.min_open_interest = int(min_open_interest)
 
         self.connect()
 
     def connect(self):
         print("🔌 Connecting to TWS...")
-        self.ib.connect(self.host, self.port, clientId=self.client_id)
-        print("✅ Connected to TWS")
+        try:
+            self.ib.connect(self.host, self.port, clientId=self.client_id)
+            print("✅ Connected to TWS")
+        except Exception as e:
+            print(f"❌ Could not connect to TWS/IB Gateway on {self.host}:{self.port} (clientId={self.client_id}).")
+            print(f"   Error: {e}")
+            raise
 
     # ---------- Data helpers ----------
     def _fetch_daily_bars(self, contract, days='60 D'):
@@ -107,11 +114,10 @@ class PullbackRecoveryScanner:
             contract = ib.Stock(symbol, 'SMART', 'USD')
             self.ib.qualifyContracts(contract)
 
-            # live price
-            t = self.ib.reqMktData(contract, '', False, False)
-            self.ib.sleep(2)
+            # live price (SNAPSHOT: lighter on pacing; no cancel needed)
+            t = self.ib.reqMktData(contract, '', snapshot=True)
+            self.ib.sleep(1.5)
             price = t.marketPrice() or t.last
-            self.ib.cancelMktData(contract)
             if not price or price <= 0:
                 return None, None, None, None, None
 
@@ -223,7 +229,7 @@ class PullbackRecoveryScanner:
             j = i + off
             if 0 <= j < len(ss):
                 out.append(ss[j])
-        return out
+        return sorted(out)  # predictable order
 
     def get_option_prices(self, symbol, expiration, strikes, price, high_5d, low_5d):
         try:
@@ -324,7 +330,9 @@ class PullbackRecoveryScanner:
         if not chains:
             print(f"❌ No option chains for {symbol}")
             return None
-        chain = chains[0]
+        # Pick the "richest" chain (most strikes)
+        chain = max(chains, key=lambda c: len(c.strikes) if c.strikes else 0)
+
         exp = self.find_target_expiration(chain.expirations)
         if not exp:
             print("❌ No 1-2 week expirations")
@@ -344,15 +352,17 @@ class PullbackRecoveryScanner:
             df['iatr'] = iatr
             df['iatr_pct'] = iatr_pct
 
-            # QUALITY FILTER (now uses configurable params)
+            # QUALITY FILTER (uses configurable params; now includes OI)
             df = df[
                 (df['profit_at_high_pct'] > 0) &                 # must profit at 5D high
                 (df['spread_pct'] <= self.max_spread_pct) &      # keep spreads tight
-                (df['volume'] >= self.min_volume)                # minimum liquidity
+                (df['volume'] >= self.min_volume) &              # minimum liquidity
+                (df['open_interest'] >= self.min_open_interest)  # NEW: avoid dead contracts
             ]
 
             if df.empty:
-                print(f"ℹ️ All candidates filtered out (profit>0, spread<={self.max_spread_pct:.0f}%, vol>={self.min_volume}).")
+                print(f"ℹ️ All candidates filtered out (profit>0, spread<={self.max_spread_pct:.0f}%, "
+                      f"vol>={self.min_volume}, OI>={self.min_open_interest}).")
                 return None
         return df
 
@@ -398,7 +408,7 @@ class PullbackRecoveryScanner:
 
         best = df_sorted.iloc[0]
         print("\n💡 BEST OPPORTUNITY:")
-        print(f"   {symbol} ${best['strike']:.1f}C @ ${best['mid_price']:.2f}")
+        print(f"   {symbol} ${best['strike']:.1f}C @ ${best['mid_price']:.2f} exp {best['expiration']}")
         print(f"   If recovers to ${hi:.2f}: {best['profit_at_high_pct']:.1f}%")
         print(f"   Breakeven ${best['breakeven']:.2f} ({((best['breakeven']/cur-1)*100):+.1f}%) | "
               f"Vol {best['volume']:.0f} | OI {int(best.get('open_interest', 0))}")
@@ -431,7 +441,7 @@ class PullbackRecoveryScanner:
                     found[symbol] = df
                     self.show_recovery_results(df, symbol)
                     ts = datetime.now().strftime('%Y%m%d_%H%M')
-                    fn = f"recovery_{symbol}_{ts}.csv"
+                    fn = f"recovery_cheap_{symbol}_{ts}.csv"  # renamed to avoid collisions
                     df.to_csv(fn, index=False)
                     print(f"💾 Saved: {fn}")
                 time.sleep(1)
@@ -453,18 +463,11 @@ class PullbackRecoveryScanner:
                     ['breakeven_move_needed_pct', 'breakeven_vs_high', 'spread_pct', 'profit_at_high_pct', 'volume'],
                     ascending=[True, True, True, False, False]
                 ).iloc[0]
-                print(f"{sym}: ${best['strike']:.1f}C @ ${best['mid_price']:.2f} "
+                print(f"{sym}: ${best['strike']:.1f}C @ ${best['mid_price']:.2f} exp {best['expiration']} "
                       f"({best['profit_at_high_pct']:.1f}% potential) | "
                       f"BE Move {best['breakeven_move_needed_pct']:.2f}% | "
                       f"Spread {best['spread_pct']:.1f}% | Vol {best['volume']:.0f} | "
                       f"OI {int(best.get('open_interest', 0))}")
-
-            # Notes under summary
-            print("\n📝 Notes:")
-            print("• Prefer lower BE Move%, spread% < ~12-15%, volume ≥ ~100-300.")
-            print("• Favor positive potential (ideally well above 0%).")
-            print("• Avoid leveraged ETFs/vol ETPs for this specific “retest 5D high” thesis.")
-            print("• Very high % potential often comes from low-delta, long-shot calls—pair it with BE Move% and liquidity checks.")
         else:
             print("\n❌ No recovery candidates found.")
         return found
@@ -491,6 +494,7 @@ def main():
             intraday_min_atr_pct=0.8,   # ← set to 1.0 on choppy days
             min_volume=100,
             max_spread_pct=12.0,
+            min_open_interest=50,       # NEW: pass OI filter
         )
 
         watchlist = [
