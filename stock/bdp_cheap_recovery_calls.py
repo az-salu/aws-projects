@@ -2,6 +2,21 @@ import ib_insync as ib
 from datetime import datetime
 import pandas as pd
 import time
+from colorama import Fore, init
+
+# Initialize colorama for colored console output
+init(autoreset=True)
+
+def print_banner():
+    banner = f"""
+{Fore.YELLOW}🚀============================================================🚀
+   {Fore.GREEN}🏆  BILLION DOLLAR PLAN  🏆
+   {Fore.CYAN}High-Probability Pullback Recovery Call Scanner
+   {Fore.MAGENTA}Looking for the Best Cheap Option Calls...
+{Fore.YELLOW}🚀============================================================🚀
+"""
+    print(banner)
+
 
 class PullbackRecoveryScanner:
     def __init__(
@@ -417,6 +432,7 @@ class PullbackRecoveryScanner:
         print("\n👋 Disconnected from TWS")
 
 def main():
+    print_banner()
     scanner = None
     try:
         # Bump intraday_min_atr_pct to 1.0 on choppy low-vol days
