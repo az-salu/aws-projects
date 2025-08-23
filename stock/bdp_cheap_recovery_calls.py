@@ -1,6 +1,7 @@
 import ib_insync as ib
 from datetime import datetime
 import pandas as pd
+import numpy as np
 import time
 from colorama import Fore, init
 
@@ -34,7 +35,10 @@ class PullbackRecoveryScanner:
         use_intraday_atr=True,
         intraday_bar='30 mins',
         intraday_period=20,         # ~one trading day of 30m bars
-        intraday_min_atr_pct=0.8    # raise to 1.0 on choppy days
+        intraday_min_atr_pct=0.8,   # raise to 1.0 on choppy days
+        # Quality filter params for cheap calls
+        min_volume=100,
+        max_spread_pct=12.0,        # tighten/loosen as desired
     ):
         self.ib = ib.IB()
         self.host = host
@@ -50,6 +54,10 @@ class PullbackRecoveryScanner:
         self.intraday_bar = intraday_bar
         self.intraday_period = int(intraday_period)
         self.intraday_min_atr_pct = float(intraday_min_atr_pct)
+
+        # Quality filters (configurable)
+        self.min_volume = int(min_volume)
+        self.max_spread_pct = float(max_spread_pct)
 
         self.connect()
 
@@ -222,38 +230,53 @@ class PullbackRecoveryScanner:
             print("📊 Getting option prices...")
             contracts = [ib.Option(symbol, expiration, k, 'C', 'SMART') for k in strikes]
             qualified = self.ib.qualifyContracts(*contracts)
-            tickers = [self.ib.reqMktData(c, '', False, False) for c in qualified]
-            self.ib.sleep(3)
+
+            # Request volume (100) and open interest (101); snapshot is lighter-weight
+            tickers = [self.ib.reqMktData(c, genericTickList='100,101', snapshot=True) for c in qualified]
+            self.ib.sleep(2)
 
             rows = []
             for t in tickers:
                 try:
                     c = t.contract
-                    bid = t.bid if t.bid and t.bid > 0 else 0
-                    ask = t.ask if t.ask and t.ask > 0 else 0
+                    bid = t.bid if t.bid and t.bid > 0 else 0.0
+                    ask = t.ask if t.ask and t.ask > 0 else 0.0
                     vol = t.volume or 0
+                    oi = getattr(t, 'optOpenInterest', None) or 0
                     if bid > 0 and ask > 0:
                         mid = (bid + ask) / 2
+                        # Cheap calls band
                         if 0.05 <= mid <= 0.50:
                             breakeven = c.strike + mid
-                            breakeven_vs_high = ((breakeven - high_5d) / high_5d) * 100
-                            profit_at_high = max(0, high_5d - c.strike - mid)
-                            profit_at_high_pct = (profit_at_high / mid * 100) if mid > 0 else 0
+                            breakeven_vs_high = ((breakeven - high_5d) / high_5d) * 100 if high_5d else np.nan
+                            profit_at_high = max(0.0, (high_5d - c.strike - mid)) if high_5d else 0.0
+                            profit_at_high_pct = (profit_at_high / mid * 100.0) if mid > 0 else 0.0
+                            spread = ask - bid
+                            spread_pct = (spread / mid * 100.0) if mid > 0 else 0.0
                             rows.append({
-                                'symbol': symbol, 'strike': c.strike, 'expiration': expiration,
-                                'bid': bid, 'ask': ask, 'mid_price': mid, 'volume': vol,
-                                'current_price': price, 'high_5d': high_5d, 'low_5d': low_5d,
-                                'breakeven': breakeven, 'breakeven_vs_high': breakeven_vs_high,
-                                'profit_at_high': profit_at_high, 'profit_at_high_pct': profit_at_high_pct,
-                                'spread': ask - bid, 'spread_pct': ((ask - bid) / mid * 100) if mid > 0 else 0
+                                'symbol': symbol,
+                                'strike': c.strike,
+                                'expiration': expiration,
+                                'bid': bid,
+                                'ask': ask,
+                                'mid_price': mid,
+                                'volume': vol,
+                                'open_interest': oi,
+                                'current_price': price,
+                                'high_5d': high_5d,
+                                'low_5d': low_5d,
+                                'breakeven': breakeven,
+                                'breakeven_vs_high': breakeven_vs_high,
+                                'profit_at_high': profit_at_high,
+                                'profit_at_high_pct': profit_at_high_pct,
+                                'spread': spread,
+                                'spread_pct': spread_pct
                             })
-                except:
+                except Exception:
                     continue
-            for t in tickers:
-                try:
-                    self.ib.cancelMktData(t.contract)
-                except:
-                    pass
+
+            # No need to cancel snapshots; if you switch to snapshot=False, cancel here.
+
             return pd.DataFrame(rows) if rows else None
         except Exception as e:
             print(f"❌ Option pricing error: {e}")
@@ -321,20 +344,22 @@ class PullbackRecoveryScanner:
             df['iatr'] = iatr
             df['iatr_pct'] = iatr_pct
 
-            # >>> QUALITY FILTER (as requested) <<<
-            df = df[(df['profit_at_high_pct'] > 0) &           # must profit at 5D high
-                    (df['spread_pct'] <= 12) &                 # keep spreads tight
-                    (df['volume'] >= 100)]                     # minimum liquidity
+            # QUALITY FILTER (now uses configurable params)
+            df = df[
+                (df['profit_at_high_pct'] > 0) &                 # must profit at 5D high
+                (df['spread_pct'] <= self.max_spread_pct) &      # keep spreads tight
+                (df['volume'] >= self.min_volume)                # minimum liquidity
+            ]
 
             if df.empty:
-                print("ℹ️ All candidates filtered out by quality rules (profit>0, spread<=12%, vol>=100).")
+                print(f"ℹ️ All candidates filtered out (profit>0, spread<={self.max_spread_pct:.0f}%, vol>={self.min_volume}).")
                 return None
         return df
 
     def show_recovery_results(self, df, symbol):
         if df is None or df.empty:
             return
-        print(f"\n💎 RECOVERY OPTIONS FOR {symbol}")
+        print(f"\n💎 RECOVERY OPTIONS FOR {symbol}  (Focus: $0.05-$0.50 premium)")
         print("=" * 80)
         cur = df['current_price'].iloc[0]
         hi = df['high_5d'].iloc[0]
@@ -350,19 +375,24 @@ class PullbackRecoveryScanner:
             extra += f" | ATR(30m): ${iatr:.2f} ({iatr_pct:.2f}%)"
         print(f"📈 Current: ${cur:.2f} | 5D High: ${hi:.2f} | 5D Low: ${lo:.2f}{extra}")
 
-        # >>> SMARTER RANKING PATCH <<<
+        # Safer BE% calc (avoid inf/NaN issues)
+        be_move = (df['breakeven'] / df['current_price'] - 1) * 100
+        be_move = be_move.replace([pd.NA, pd.NaT], 0).fillna(0)
+        be_move = be_move.replace([np.inf, -np.inf], 0)
+
         df_sorted = df.assign(
-            breakeven_move_needed_pct=((df['breakeven'] / df['current_price'] - 1) * 100)
+            breakeven_move_needed_pct=be_move
         ).sort_values(
             ['breakeven_move_needed_pct', 'breakeven_vs_high', 'spread_pct', 'profit_at_high_pct', 'volume'],
             ascending=[True, True, True, False, False]
         )
 
-        print("\n🚀 BEST RECOVERY CALL OPTIONS:")
-        print("Strike | Price | Volume | Breakeven | BE Move% | Profit@High | Spread%")
-        print("-" * 75)
+        print("\n🚀 BEST CHEAP RECOVERY CALL OPTIONS:")
+        print("           (Focus: $0.05 - $0.50 premium)")
+        print("Strike | Price | Volume | OI | Breakeven | BE Move% | Profit@High | Spread%")
+        print("-" * 90)
         for _, r in df_sorted.head(5).iterrows():
-            print(f"${r['strike']:5.1f} | ${r['mid_price']:4.2f} | {r['volume']:6.0f} | "
+            print(f"${r['strike']:5.1f} | ${r['mid_price']:4.2f} | {r['volume']:6.0f} | {int(r.get('open_interest', 0)):4d} | "
                   f"${r['breakeven']:6.2f} | {r['breakeven_move_needed_pct']:7.2f}% | "
                   f"{r['profit_at_high_pct']:7.1f}% | {r['spread_pct']:5.1f}%")
 
@@ -370,11 +400,18 @@ class PullbackRecoveryScanner:
         print("\n💡 BEST OPPORTUNITY:")
         print(f"   {symbol} ${best['strike']:.1f}C @ ${best['mid_price']:.2f}")
         print(f"   If recovers to ${hi:.2f}: {best['profit_at_high_pct']:.1f}%")
-        print(f"   Breakeven ${best['breakeven']:.2f} ({((best['breakeven']/cur-1)*100):+.1f}%) | Vol {best['volume']:.0f}")
+        print(f"   Breakeven ${best['breakeven']:.2f} ({((best['breakeven']/cur-1)*100):+.1f}%) | "
+              f"Vol {best['volume']:.0f} | OI {int(best.get('open_interest', 0))}")
 
     def scan_watchlist_for_recovery(self, symbols):
+        print_banner()  # show banner every scan start
         print("\n🎯 SCANNING FOR PULLBACK RECOVERY OPPORTUNITIES")
         print("=" * 70)
+
+        # Normalize and dedupe while preserving order
+        symbols = list(dict.fromkeys(s.strip().upper() for s in symbols))
+        print("🧾 Final watchlist:", ", ".join(symbols))
+
         atr_line = []
         if self.min_atr_pct is not None:
             atr_line.append(f"Daily ATR% ≥ {self.min_atr_pct:.2f}%")
@@ -407,17 +444,23 @@ class PullbackRecoveryScanner:
             print("\n🏆 RECOVERY SUMMARY")
             print("=" * 50)
             for sym, df in found.items():
+                be_move = (df['breakeven'] / df['current_price'] - 1) * 100
+                be_move = be_move.replace([pd.NA, pd.NaT], 0).fillna(0)
+                be_move = be_move.replace([np.inf, -np.inf], 0)
+
                 best = df.assign(
-                    breakeven_move_needed_pct=((df['breakeven'] / df['current_price'] - 1) * 100)
+                    breakeven_move_needed_pct=be_move
                 ).sort_values(
                     ['breakeven_move_needed_pct', 'breakeven_vs_high', 'spread_pct', 'profit_at_high_pct', 'volume'],
                     ascending=[True, True, True, False, False]
                 ).iloc[0]
                 print(f"{sym}: ${best['strike']:.1f}C @ ${best['mid_price']:.2f} "
                       f"({best['profit_at_high_pct']:.1f}% potential) | "
-                      f"BE Move {best['breakeven_move_needed_pct']:.2f}% | Spread {best['spread_pct']:.1f}% | Vol {best['volume']:.0f}")
+                      f"BE Move {best['breakeven_move_needed_pct']:.2f}% | "
+                      f"Spread {best['spread_pct']:.1f}% | Vol {best['volume']:.0f} | "
+                      f"OI {int(best.get('open_interest', 0))}")
 
-            # >>> NOTES UNDER THE SUMMARY <<<
+            # Notes under summary
             print("\n📝 Notes:")
             print("• Prefer lower BE Move%, spread% < ~12-15%, volume ≥ ~100-300.")
             print("• Favor positive potential (ideally well above 0%).")
@@ -430,6 +473,7 @@ class PullbackRecoveryScanner:
     def disconnect(self):
         self.ib.disconnect()
         print("\n👋 Disconnected from TWS")
+
 
 def main():
     print_banner()
@@ -445,7 +489,9 @@ def main():
             use_intraday_atr=True,
             intraday_bar='30 mins',
             intraday_period=20,
-            intraday_min_atr_pct=0.8   # ← set to 1.0 on choppy days
+            intraday_min_atr_pct=0.8,   # ← set to 1.0 on choppy days
+            min_volume=100,
+            max_spread_pct=12.0,
         )
 
         watchlist = [
@@ -464,7 +510,7 @@ def main():
             'ZS', 'MNDY', 'ETSY', 'WBA', 'SBUX', 'NKE', 'LOW', 'CVS', 'GM',
             'LULU',
         ]
-        
+
         print(f"🔍 Scanning {len(watchlist)} symbols...")
         results = scanner.scan_watchlist_for_recovery(watchlist)
         print("\n🎉 SCAN COMPLETE!")
