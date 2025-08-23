@@ -3,12 +3,26 @@ from datetime import datetime
 import pandas as pd
 import time
 from math import erf, sqrt
+from colorama import Fore, init
+
+# Initialize colorama for colored console output
+init(autoreset=True)
+
+def print_banner():
+    banner = f"""
+{Fore.YELLOW}🚀============================================================🚀
+   {Fore.GREEN}🏆  BILLION DOLLAR PLAN  🏆
+   {Fore.CYAN}High-Probability Pullback Recovery Call Scanner
+   {Fore.MAGENTA}Looking for the Best Option...
+{Fore.YELLOW}🚀============================================================🚀
+"""
+    print(banner)
 
 class PullbackRecoveryScannerV2:
     """
     Variant of the original scanner that:
       • Keeps the same price/ATR/pullback-recovery gates
-      • Drops the 5–50¢ option price band entirely
+      • Drops the 5-50¢ option price band entirely
       • Scores and returns the *highest-probability* call contracts instead
         of only cheap lottos
 
@@ -359,7 +373,7 @@ class PullbackRecoveryScannerV2:
         # Spread penalty: convert to [0,1] with 0% spread = 1, >= max_spread_pct = 0
         spread_penalty = (1.0 - (df['spread_pct'] / self.max_spread_pct)).clip(0, 1)
 
-        # Bonus for preferred delta range (roughly 0.30–0.60): bell around midpoint
+        # Bonus for preferred delta range (roughly 0.30-0.60): bell around midpoint
         mid = (self.prefer_delta_min + self.prefer_delta_max) / 2.0
         width = (self.prefer_delta_max - self.prefer_delta_min) / 2.0 or 0.15
         delta_pref = df['delta'].fillna(0).apply(lambda d: max(0.0, 1.0 - abs((d - mid) / (width))))
@@ -503,7 +517,7 @@ class PullbackRecoveryScannerV2:
         if self.use_intraday_atr:
             atr_line.append(f"Intraday(30m) ATR% ≥ {self.intraday_min_atr_pct:.2f}%")
         print("🔊 Volatility gates: " + " | ".join(atr_line))
-        print("📉 Pullback 3–15% | 📈 Recovery ≥ 1% | 🎯 ±{0} strikes | ⏰ {1}–{2} days".format(
+        print("📉 Pullback 3-15% | 📈 Recovery ≥ 1% | 🎯 ±{0} strikes | ⏰ {1}-{2} days".format(
             self.strikes_window, self.target_expiry_min_days, self.target_expiry_max_days))
         print("=" * 80)
 
@@ -541,6 +555,8 @@ class PullbackRecoveryScannerV2:
 
 
 def main():
+    print_banner()
+    
     scanner = None
     try:
         scanner = PullbackRecoveryScannerV2(
