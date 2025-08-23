@@ -522,6 +522,11 @@ class PullbackRecoveryScannerV2:
     def scan_watchlist(self, symbols):
         print("\n🎯 SCANNING WATCHLIST (High-Probability Version)")
         print("=" * 80)
+
+        # Normalize and dedupe while preserving order
+        symbols = list(dict.fromkeys(s.strip().upper() for s in symbols))
+        print("🧾 Final watchlist:", ", ".join(symbols))
+        
         atr_line = []
         if self.min_atr_pct is not None:
             atr_line.append(f"Daily ATR% ≥ {self.min_atr_pct:.2f}%")
