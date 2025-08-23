@@ -404,7 +404,6 @@ class PullbackRecoveryScanner:
               f"Vol {best['volume']:.0f} | OI {int(best.get('open_interest', 0))}")
 
     def scan_watchlist_for_recovery(self, symbols):
-        print_banner()  # show banner every scan start
         print("\n🎯 SCANNING FOR PULLBACK RECOVERY OPPORTUNITIES")
         print("=" * 70)
 
