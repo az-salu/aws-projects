@@ -4,6 +4,61 @@ import pandas as pd
 import time
 from math import erf, sqrt, log, exp
 from collections import deque
+import requests
+
+try:
+    from config import SLACK_WEBHOOK_URL
+except ImportError:
+    print("⚠️ Warning: config.py not found. Slack notifications disabled.")
+    SLACK_WEBHOOK_URL = None
+
+def send_to_slack(scanner_name, found_dict, filename=None):
+    """Send scanner results to Slack"""
+    if not SLACK_WEBHOOK_URL:
+        return  # Skip if no webhook configured
+
+    webhook_url = SLACK_WEBHOOK_URL
+
+    if not found_dict:
+        # No results found
+        message = {
+            "text": f"🎯 {scanner_name}",
+            "attachments": [{
+                "color": "warning",
+                "text": "No high probability opportunities found in current market conditions",
+                "footer": datetime.now().strftime('%Y-%m-%d %H:%M ET')
+            }]
+        }
+    else:
+        # Format top opportunities - adjusted for high probability metrics
+        summary_lines = []
+        for symbol, df in list(found_dict.items())[:5]:  # Top 5 symbols
+            best = df.iloc[0]
+            prob = best.get('prob_itm', 0) * 100
+            
+            summary_lines.append(
+                f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} "
+                f"({prob:.0f}% ITM, {best['breakeven_move_needed_pct']:.1f}% move, "
+                f"Score: {best['score']:.2f})"
+            )
+
+        message = {
+            "text": f"🎯 {scanner_name} - Found {len(found_dict)} high probability plays",
+            "attachments": [{
+                "color": "good",
+                "text": "\n".join(summary_lines),
+                "footer": f"File: {filename}" if filename else datetime.now().strftime('%Y-%m-%d %H:%M ET')
+            }]
+        }
+
+    try:
+        response = requests.post(webhook_url, json=message)
+        if response.status_code == 200:
+            print("📨 Results sent to Slack")
+        else:
+            print(f"⚠️ Slack notification failed: {response.status_code}")
+    except Exception as e:
+        print(f"⚠️ Could not send to Slack: {e}")
 
 class PullbackRecoveryScannerV2:
     """
@@ -711,6 +766,9 @@ class PullbackRecoveryScannerV2:
             print(f"   From {len(found)} symbols")
             print(f"   Scan time: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
 
+            # Send to Slack if webhook is configured
+            send_to_slack("High Probability Calls Scanner", found, filename)
+
         if found:
             print("\n🏆 SUMMARY (Top Pick per Symbol)")
             print("=" * 60)
@@ -722,6 +780,7 @@ class PullbackRecoveryScannerV2:
                       f"BE Move {best['breakeven_move_needed_pct']:.2f}% | Spread {best['spread_pct']:.1f}% | Vol {int(best['volume'])}")
         else:
             print("\n❌ No candidates found.")
+            send_to_slack("High Probability Calls Scanner", {})
         return found
 
     def disconnect(self):
@@ -755,9 +814,9 @@ def main():
             risk_free_rate=0.045,  # Current US Treasury rate ~4.5%
             # Rate limiting settings
             respect_rate_limits=True,
-            delay_between_symbols=2.0,  # 2 seconds between each symbol
-            delay_after_hist_batch=10.0,  # 10 second pause after 20 requests
-            hist_batch_size=20,  # pause after every 20 historical requests
+            delay_between_symbols=1.0,  # 1 seconds between each symbol
+            delay_after_hist_batch=5.0,  # 5 second pause after 30 requests
+            hist_batch_size=30,  # pause after every 30 historical requests
         )
 
         # Load watchlist from file

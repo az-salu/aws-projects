@@ -47,3 +47,7 @@ build-image.sh
 .DS_store
 
 .tmp.driveupload
+
+config.py
+*.pyc
+__pycache__/

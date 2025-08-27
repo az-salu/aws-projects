@@ -4,6 +4,60 @@ import pandas as pd
 import time
 from math import erf, sqrt, log
 from collections import deque
+import requests
+
+try:
+    from config import SLACK_WEBHOOK_URL
+except ImportError:
+    print("⚠️ Warning: config.py not found. Slack notifications disabled.")
+    SLACK_WEBHOOK_URL = None
+
+def send_to_slack(scanner_name, found_dict, filename=None):
+    """Send scanner results to Slack"""
+    if not SLACK_WEBHOOK_URL:
+        return  # Skip if no webhook configured
+    
+    webhook_url = SLACK_WEBHOOK_URL
+    
+    if not found_dict:
+        # No results found
+        message = {
+            "text": f"🎲 {scanner_name}",
+            "attachments": [{
+                "color": "warning",
+                "text": "No opportunities found in current market conditions",
+                "footer": datetime.now().strftime('%Y-%m-%d %H:%M ET')
+            }]
+        }
+    else:
+        # Format top opportunities
+        summary_lines = []
+        for symbol, df in list(found_dict.items())[:5]:  # Top 5 symbols
+            best = df.iloc[0]
+            prob = best.get('prob_itm', 0) * 100
+            
+            summary_lines.append(
+                f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} "
+                f"({prob:.0f}% prob, {best['risk_reward']:.1f}x R/R, {best['tier']})"
+            )
+        
+        message = {
+            "text": f"🎲 {scanner_name} - Found {len(found_dict)} opportunities",
+            "attachments": [{
+                "color": "good",
+                "text": "\n".join(summary_lines),
+                "footer": f"File: {filename}" if filename else datetime.now().strftime('%Y-%m-%d %H:%M ET')
+            }]
+        }
+    
+    try:
+        response = requests.post(webhook_url, json=message)
+        if response.status_code == 200:
+            print("📨 Results sent to Slack")
+        else:
+            print(f"⚠️ Slack notification failed: {response.status_code}")
+    except Exception as e:
+        print(f"⚠️ Could not send to Slack: {e}")
 
 class CheapOptionsScanner:
     """
@@ -47,9 +101,9 @@ class CheapOptionsScanner:
         # Rate limiting
         respect_rate_limits=True,
         hist_requests_per_10min=60,
-        delay_between_symbols=2.0,
-        delay_after_hist_batch=10.0,
-        hist_batch_size=20,
+        delay_between_symbols=1.0, # 1 seconds between each symbol
+        delay_after_hist_batch=5.0, # 5 second pause after 30 requests
+        hist_batch_size=30, # pause after every 30 historical requests
     ):
         self.ib = ib.IB()
         self.host = host
@@ -690,6 +744,9 @@ class CheapOptionsScanner:
             print(f"   Total opportunities: {len(output_df)}")
             print(f"   From {len(found)} symbols")
             
+            # Send to Slack if webhook is configured
+            send_to_slack("Cheap Calls Scanner", found, filename)
+            
             # Show tier breakdown
             tier_counts = output_df['Tier'].value_counts()
             print("\n📊 Tier Breakdown:")
@@ -709,6 +766,7 @@ class CheapOptionsScanner:
                       f"{best['profit_at_high_pct']:6.0f}% | {best['tier']}")
         else:
             print("\n❌ No cheap options found meeting criteria")
+            send_to_slack("Cheap Calls Scanner", {})
             
         print(f"\nTotal historical requests: {self.hist_request_count}")
         return found
@@ -716,7 +774,6 @@ class CheapOptionsScanner:
     def disconnect(self):
         self.ib.disconnect()
         print("\n👋 Disconnected from TWS")
-
 
 def main():
     scanner = None
