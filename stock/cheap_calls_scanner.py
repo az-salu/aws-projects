@@ -15,10 +15,10 @@ except ImportError:
 def send_to_slack(scanner_name, found_dict, filename=None):
     """Send scanner results to Slack"""
     if not SLACK_WEBHOOK_URL:
-        return  # Skip if no webhook configured
-    
+        return
+
     webhook_url = SLACK_WEBHOOK_URL
-    
+
     if not found_dict:
         # No results found
         message = {
@@ -30,26 +30,38 @@ def send_to_slack(scanner_name, found_dict, filename=None):
             }]
         }
     else:
-        # Format top opportunities
+        # Format ALL opportunities with expanded details
         summary_lines = []
-        for symbol, df in list(found_dict.items())[:5]:  # Top 5 symbols
+        for symbol, df in list(found_dict.items())[:20]:  # Limit to 20 for Slack readability
             best = df.iloc[0]
             prob = best.get('prob_itm', 0) * 100
+            exp_date = best['expiration']
+            # Format expiration date if it's in YYYYMMDD format
+            if len(str(exp_date)) == 8:
+                exp_date = f"{str(exp_date)[4:6]}/{str(exp_date)[6:]}"  # MM/DD format
             
             summary_lines.append(
-                f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} "
-                f"({prob:.0f}% prob, {best['risk_reward']:.1f}x R/R, {best['tier']})"
+                f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} | "
+                f"Exp: {exp_date} | {prob:.0f}% ITM | "
+                f"R/R: {best['risk_reward']:.1f}x | {best['tier']}"
             )
+        
+        # Create the message with all results
+        results_text = "\n".join(summary_lines)
+        
+        # If there are more than 20, add a note
+        if len(found_dict) > 20:
+            results_text += f"\n\n... and {len(found_dict) - 20} more in the CSV file"
         
         message = {
             "text": f"🎲 {scanner_name} - Found {len(found_dict)} opportunities",
             "attachments": [{
                 "color": "good",
-                "text": "\n".join(summary_lines),
+                "text": results_text,
                 "footer": f"File: {filename}" if filename else datetime.now().strftime('%Y-%m-%d %H:%M ET')
             }]
         }
-    
+
     try:
         response = requests.post(webhook_url, json=message)
         if response.status_code == 200:

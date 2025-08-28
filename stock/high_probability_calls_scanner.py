@@ -15,7 +15,7 @@ except ImportError:
 def send_to_slack(scanner_name, found_dict, filename=None):
     """Send scanner results to Slack"""
     if not SLACK_WEBHOOK_URL:
-        return  # Skip if no webhook configured
+        return
 
     webhook_url = SLACK_WEBHOOK_URL
 
@@ -30,23 +30,35 @@ def send_to_slack(scanner_name, found_dict, filename=None):
             }]
         }
     else:
-        # Format top opportunities - adjusted for high probability metrics
+        # Format ALL opportunities with expanded details
         summary_lines = []
-        for symbol, df in list(found_dict.items())[:5]:  # Top 5 symbols
+        for symbol, df in list(found_dict.items())[:20]:  # Limit to 20 for Slack readability
             best = df.iloc[0]
             prob = best.get('prob_itm', 0) * 100
+            exp_date = best['expiration']
+            # Format expiration date if it's in YYYYMMDD format
+            if len(str(exp_date)) == 8:
+                exp_date = f"{str(exp_date)[4:6]}/{str(exp_date)[6:]}"  # MM/DD format
             
             summary_lines.append(
-                f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} "
-                f"({prob:.0f}% ITM, {best['breakeven_move_needed_pct']:.1f}% move, "
-                f"Score: {best['score']:.2f})"
+                f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} | "
+                f"Exp: {exp_date} | {prob:.0f}% ITM | "
+                f"BE: ${best['breakeven']:.2f} ({best['breakeven_move_needed_pct']:.1f}% move) | "
+                f"Score: {best['score']:.2f}"
             )
-
+        
+        # Create the message with all results
+        results_text = "\n".join(summary_lines)
+        
+        # If there are more than 20, add a note
+        if len(found_dict) > 20:
+            results_text += f"\n\n... and {len(found_dict) - 20} more in the CSV file"
+        
         message = {
             "text": f"🎯 {scanner_name} - Found {len(found_dict)} high probability plays",
             "attachments": [{
                 "color": "good",
-                "text": "\n".join(summary_lines),
+                "text": results_text,
                 "footer": f"File: {filename}" if filename else datetime.now().strftime('%Y-%m-%d %H:%M ET')
             }]
         }
@@ -64,7 +76,7 @@ class PullbackRecoveryScannerV2:
     """
     Variant of the original scanner that:
       • Keeps the same price/ATR/pullback-recovery gates
-      • Drops the 5–50¢ option price band entirely
+      • Drops the 5-50¢ option price band entirely
       • Scores and returns the *highest-probability* call contracts instead
         of only cheap lottos
 
@@ -520,7 +532,7 @@ class PullbackRecoveryScannerV2:
         # Spread penalty: convert to [0,1] with 0% spread = 1, >= max_spread_pct = 0
         spread_penalty = (1.0 - (df['spread_pct'] / self.max_spread_pct)).clip(0, 1)
 
-        # Bonus for preferred delta range (roughly 0.30–0.60): bell around midpoint
+        # Bonus for preferred delta range (roughly 0.30-0.60): bell around midpoint
         mid = (self.prefer_delta_min + self.prefer_delta_max) / 2.0
         width = (self.prefer_delta_max - self.prefer_delta_min) / 2.0 or 0.15
         delta_pref = df['delta'].fillna(0).apply(lambda d: max(0.0, 1.0 - abs((d - mid) / (width))))
@@ -668,7 +680,7 @@ class PullbackRecoveryScannerV2:
         if self.use_intraday_atr:
             atr_line.append(f"Intraday(30m) ATR% ≥ {self.intraday_min_atr_pct:.2f}%")
         print("🔊 Volatility gates: " + " | ".join(atr_line))
-        print("📉 Pullback 3–15% | 📈 Recovery ≥ 1% | 🎯 ±{0} strikes | ⏰ {1}–{2} days".format(
+        print("📉 Pullback 3-15% | 📈 Recovery ≥ 1% | 🎯 ±{0} strikes | ⏰ {1}-{2} days".format(
             self.strikes_window, self.target_expiry_min_days, self.target_expiry_max_days))
         print(f"💰 Risk-free rate: {self.risk_free_rate:.2%}")
         print("=" * 80)
