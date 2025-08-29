@@ -32,7 +32,7 @@ def send_to_slack(scanner_name, found_dict, filename=None):
     else:
         # Format ALL opportunities with expanded details
         summary_lines = []
-        for symbol, df in list(found_dict.items())[:20]:  # Limit to 20 for Slack readability
+        for symbol, df in found_dict.items():  # Show all (which will be max 5 now)
             best = df.iloc[0]
             prob = best.get('prob_itm', 0) * 100
             exp_date = best['expiration']
@@ -44,6 +44,7 @@ def send_to_slack(scanner_name, found_dict, filename=None):
                 f"• {symbol} ${best['strike']:.0f}C @ ${best['mid_price']:.2f} | "
                 f"Exp: {exp_date} | {prob:.0f}% ITM | "
                 f"BE: ${best['breakeven']:.2f} ({best['breakeven_move_needed_pct']:.1f}% move) | "
+                f"Spread: {best['spread_pct']:.1f}% | "
                 f"Score: {best['score']:.2f}"
             )
         
@@ -723,6 +724,9 @@ class PullbackRecoveryScannerV2:
                 ['score', 'breakeven_move_needed_pct', 'spread_pct'], 
                 ascending=[False, True, True]
             )
+
+            # Limit to top 5 overall
+            # consolidated_df = consolidated_df.head(5)
             
             # Format expiration dates to be human-readable
             def format_expiration(exp_str):
@@ -744,6 +748,7 @@ class PullbackRecoveryScannerV2:
                 'Spread%': consolidated_df['spread_pct'].round(1),
                 'Vol': consolidated_df['volume'].astype(int),
                 'Stock': consolidated_df['current_price'].round(2),
+                'Score': consolidated_df['score'].round(2),
             })
             
             # Save consolidated results with header
