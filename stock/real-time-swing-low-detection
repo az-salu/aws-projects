@@ -1,0 +1,282 @@
+//@version=6
+indicator('Real-Time Swing Low Detection with Retest', overlay = true, max_labels_count = 50)
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+// Timeframe Selection
+tfGroup = 'Timeframe Settings'
+useMTF = input.bool(false, 'Use Specific Timeframe for Detection', group = tfGroup)
+tfInput = input.timeframe('15', 'Detection Timeframe', group = tfGroup)
+showMTFLabel = input.bool(true, 'Show Timeframe in Labels', group = tfGroup)
+
+// Swing Detection Parameters
+swingGroup = 'Swing Detection'
+lookback = input.int(10, 'Lookback for Local Low', minval=3, maxval=50, group = swingGroup)
+confirmBars = input.int(2, 'Bars to Confirm Bounce', minval=1, maxval=5, group = swingGroup)
+minBouncePercent = input.float(0.1, 'Min Bounce %', minval=0.0, maxval=2.0, step=0.05, group = swingGroup)
+
+// Retest Settings
+retestGroup = 'Retest Settings'
+enableRetestAlert = input.bool(true, 'Enable Retest Alerts', group = retestGroup)
+retestLookback = input.int(100, 'Bars to Watch for Retest', minval=10, maxval=500, group = retestGroup)
+showRetestLine = input.bool(true, 'Show Retest Level Line', group = retestGroup)
+showRetestLabel = input.bool(true, 'Show Retest Labels', group = retestGroup)
+
+// Additional Filters
+filterGroup = 'Filters'
+useVolumeFilter = input.bool(true, 'Use Volume Confirmation', group = filterGroup)
+volumeMultiplier = input.float(1.2, 'Volume Multiplier', minval=1.0, maxval=3.0, step=0.1, group = filterGroup)
+useRSIFilter = input.bool(false, 'Use RSI Oversold Filter', group = filterGroup)
+rsiLength = input.int(14, 'RSI Length', minval=5, maxval=50, group = filterGroup)
+rsiOversold = input.float(30, 'RSI Oversold Level', minval=20, maxval=40, group = filterGroup)
+
+// Alert Settings
+alertGroup = 'Alert Settings'
+enableAlerts = input.bool(true, 'Enable Swing Low Alerts', group = alertGroup)
+enableHigherLowAlerts = input.bool(true, 'Enable Higher Low Alerts', group = alertGroup)
+alert15MOnly = input.bool(true, 'Alert Only on 15M Timeframe Detections', group = alertGroup)
+showLabels = input.bool(true, 'Show Labels', group = alertGroup)
+highlightCandles = input.bool(true, 'Highlight Signal Candles', group = alertGroup)
+
+// Style
+styleGroup = 'Style'
+swingLowColor = input(color.teal, 'Swing Low Color', group = styleGroup)
+higherLowColor = input(color.rgb(147, 51, 234), 'Higher Low Color', group = styleGroup)
+retestColor = input(color.green, 'Retest Success Color', group = styleGroup)
+candleHighlightColor = input(color.new(color.teal, 85), 'Candle Highlight', group = styleGroup)
+hlCandleHighlightColor = input(color.new(color.rgb(147, 51, 234), 85), 'HL Candle Highlight', group = styleGroup)
+retestHighlightColor = input(color.new(color.green, 85), 'Retest Highlight', group = styleGroup)
+
+//-----------------------------------------------------------------------------}
+//Functions for Detection
+//-----------------------------------------------------------------------------{
+detectSwingLow() =>
+    // RSI Calculation
+    rsiValue = ta.rsi(close, rsiLength)
+    
+    // Volume Moving Average
+    volMA = ta.sma(volume, 20)
+    
+    // Find the lowest low in the lookback period
+    lowestLow = ta.lowest(low, lookback)
+    lowestLowBar = ta.barssince(low == lowestLow)
+    
+    // Calculate bounce percentage from the low
+    bouncePercent = lowestLow != 0 ? ((close - lowestLow) / lowestLow) * 100 : 0
+    
+    // Main Detection Conditions
+    isLocalLow = low[lowestLowBar] == lowestLow and lowestLowBar >= confirmBars
+    hasBounced = bouncePercent >= minBouncePercent
+    priceAboveLow = close > lowestLow and close[1] > lowestLow
+    
+    // Volume Confirmation (if enabled)
+    volumeConfirm = not useVolumeFilter or volume > volMA * volumeMultiplier
+    
+    // RSI Confirmation (if enabled)
+    rsiConfirm = not useRSIFilter or rsiValue[lowestLowBar] < rsiOversold
+    
+    // Detect Swing Low in Real-Time
+    swingLowDetected = isLocalLow and hasBounced and priceAboveLow and volumeConfirm and rsiConfirm
+    
+    // Additional confirmation: Check if it's a meaningful low (not just noise)
+    meaningfulMove = (high - lowestLow) > ta.atr(14) * 0.5
+    
+    // Final Signal
+    realTimeSwingLow = swingLowDetected and meaningfulMove
+    
+    [realTimeSwingLow, lowestLow, lowestLowBar, bouncePercent, rsiValue]
+
+//-----------------------------------------------------------------------------}
+//Multi-Timeframe or Current Timeframe Detection
+//-----------------------------------------------------------------------------{
+var float previousSwingLow = na
+var int previousSwingLowBar = na
+var float lastDetectedLow = na
+var int lastDetectedLowBar = na
+
+// Arrays to store swing low levels for retest tracking
+var array<float> swingLowLevels = array.new<float>()
+var array<int> swingLowBars = array.new<int>()
+var array<bool> swingLowRetested = array.new<bool>()
+var array<line> swingLowLines = array.new<line>()
+
+// Get detection results based on settings
+[swingLowSignal, detectedLow, lowBarOffset, bounce, rsiVal] = if useMTF
+    request.security(syminfo.tickerid, tfInput, detectSwingLow(), lookahead = barmerge.lookahead_off)
+else
+    detectSwingLow()
+
+// Detect Higher Lows
+isHigherLow = false
+if swingLowSignal
+    if not na(previousSwingLow)
+        isHigherLow := detectedLow > previousSwingLow
+    
+    // Update tracking variables
+    previousSwingLow := detectedLow
+    previousSwingLowBar := bar_index - lowBarOffset
+    lastDetectedLow := detectedLow
+    lastDetectedLowBar := bar_index
+
+//-----------------------------------------------------------------------------}
+//Track New Swing Lows for Retest
+//-----------------------------------------------------------------------------{
+if swingLowSignal and not isHigherLow
+    // Get the actual low of the candle where L is printed
+    actualLowPrice = low[lowBarOffset]
+    
+    // Add to tracking arrays
+    array.push(swingLowLevels, actualLowPrice)
+    array.push(swingLowBars, bar_index - lowBarOffset)
+    array.push(swingLowRetested, false)
+    
+    // Create a line for this level if enabled
+    if showRetestLine
+        newLine = line.new(bar_index - lowBarOffset, actualLowPrice, bar_index + 50, actualLowPrice, 
+                          color = color.new(swingLowColor, 50), style = line.style_dashed, width = 1)
+        array.push(swingLowLines, newLine)
+    
+    // Limit array size to prevent memory issues
+    if array.size(swingLowLevels) > 20
+        array.shift(swingLowLevels)
+        array.shift(swingLowBars)
+        array.shift(swingLowRetested)
+        deletedLine = array.shift(swingLowLines)
+        line.delete(deletedLine)
+
+//-----------------------------------------------------------------------------}
+//Check for Retests
+//-----------------------------------------------------------------------------{
+var bool retestSignal = false
+var float retestedLevel = na
+var int retestedLevelBar = na
+
+retestSignal := false
+
+// Check each tracked swing low for retest
+if array.size(swingLowLevels) > 0
+    for i = array.size(swingLowLevels) - 1 to 0
+        swingLevel = array.get(swingLowLevels, i)
+        swingBar = array.get(swingLowBars, i)
+        alreadyRetested = array.get(swingLowRetested, i)
+        
+        // Check if we're within the lookback period
+        if (bar_index - swingBar) <= retestLookback and not alreadyRetested
+            // Check if price dropped to or below the swing low level
+            touchedLevel = low <= swingLevel
+            
+            // Check if price closed back above the level
+            closedAbove = close > swingLevel
+            
+            // Check if we previously touched the level (need at least one bar since the swing low)
+            barsSinceSwing = bar_index - swingBar
+            previouslyTouched = false
+            if barsSinceSwing > 1
+                for j = 1 to math.min(barsSinceSwing - 1, 50)
+                    if low[j] <= swingLevel
+                        previouslyTouched := true
+                        break
+            
+            // Retest confirmed: previously touched the level and now closing above it
+            if previouslyTouched and closedAbove and touchedLevel[1]
+                retestSignal := true
+                retestedLevel := swingLevel
+                retestedLevelBar := swingBar
+                array.set(swingLowRetested, i, true)
+                
+                // Update line color if it exists
+                if showRetestLine and array.size(swingLowLines) > i
+                    lineToUpdate = array.get(swingLowLines, i)
+                    line.set_color(lineToUpdate, retestColor)
+                    line.set_style(lineToUpdate, line.style_solid)
+                    line.set_width(lineToUpdate, 2)
+
+//-----------------------------------------------------------------------------}
+//Labels and Visual Signals
+//-----------------------------------------------------------------------------{
+// Add a check to prevent duplicate labels at the same price level
+var float lastLabelPrice = na
+var int lastLabelBar = na
+
+if swingLowSignal and showLabels
+    // Only create label if it's at a different price or sufficient bars have passed
+    shouldCreateLabel = na(lastLabelPrice) or 
+                       detectedLow != lastLabelPrice or 
+                       (bar_index - lastLabelBar) > 5
+    
+    if shouldCreateLabel
+        labelText = isHigherLow ? 'HL' : 'L'
+        
+        // Add timeframe to label if using MTF
+        if useMTF and showMTFLabel
+            labelText := labelText + ' (' + tfInput + ')'
+        
+        labelColor = isHigherLow ? higherLowColor : swingLowColor
+        
+        label.new(bar_index - lowBarOffset, detectedLow, labelText, 
+                  color = color(na), 
+                  style = label.style_label_up, 
+                  textcolor = labelColor, 
+                  size = size.small)
+        
+        // Update tracking variables
+        lastLabelPrice := detectedLow
+        lastLabelBar := bar_index
+
+// Retest Label
+if retestSignal and showRetestLabel
+    label.new(bar_index, low, 'RETEST ✓', 
+              color = color(na), 
+              style = label.style_label_up, 
+              textcolor = retestColor, 
+              size = size.small)
+
+// Highlight Candles
+bgcolorSwingLow = highlightCandles and swingLowSignal and not isHigherLow ? candleHighlightColor : na
+bgcolorHigherLow = highlightCandles and swingLowSignal and isHigherLow ? hlCandleHighlightColor : na
+bgcolorRetest = highlightCandles and retestSignal ? retestHighlightColor : na
+
+bgcolor(bgcolorSwingLow, title = 'Swing Low Highlight')
+bgcolor(bgcolorHigherLow, title = 'Higher Low Highlight')
+bgcolor(bgcolorRetest, title = 'Retest Highlight')
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+// Determine if we should send alert based on timeframe settings
+shouldAlert = if alert15MOnly
+    (useMTF and tfInput == '15') or (not useMTF and timeframe.period == '15')
+else
+    true
+
+// Create alert trigger conditions
+swingLowAlertTrigger = swingLowSignal and enableAlerts and not isHigherLow and shouldAlert
+higherLowAlertTrigger = swingLowSignal and enableHigherLowAlerts and isHigherLow and shouldAlert
+retestAlertTrigger = retestSignal and enableRetestAlert and shouldAlert and barstate.isconfirmed
+
+// ALERT CONDITIONS (These will appear in the Alert menu)
+// Retest Alert - Main Alert You Requested
+alertcondition(retestAlertTrigger, 
+               title='🟢 RETEST SUCCESSFUL', 
+               message='🟢 {{ticker}} [15M] - RETEST SUCCESSFUL! | Price: {{close}} | Time: {{time}} | Now above swing low support')
+
+// Swing Low Alert
+alertcondition(swingLowAlertTrigger, 
+               title='🔵 Swing Low Detected', 
+               message='🔵 {{ticker}} - SWING LOW DETECTED | Current Price: {{close}} | Time: {{time}}')
+
+// Higher Low Alert
+alertcondition(higherLowAlertTrigger, 
+               title='🟣 Higher Low Detected', 
+               message='🟣 {{ticker}} - HIGHER LOW DETECTED | Current Price: {{close}} | Time: {{time}}')
+
+//-----------------------------------------------------------------------------}
+//Plot Key Levels
+//-----------------------------------------------------------------------------{
+// Plot recent swing low level
+plot(lastDetectedLow, title='Last Swing Low', color=color.new(swingLowColor, 70), style=plot.style_line, linewidth=1, offset=-1)
+
+// Show values in Data Window for debugging
+plot(rsiVal, title='RSI', display=display.data_window)
+plot(bounce, title='Bounce %', display=display.data_window)
+plot(retestSignal ? 1 : 0, title='Retest Signal', display=display.data_window)
