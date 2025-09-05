@@ -223,9 +223,13 @@ if swingLowSignal and showLabels
         lastLabelPrice := detectedLow
         lastLabelBar := bar_index
 
-// Retest Label
+// Retest Label with Price
 if retestSignal and showRetestLabel
-    label.new(bar_index, low, 'RETEST ✓', 
+    // Format the retest price to a reasonable number of decimal places
+    priceStr = str.tostring(retestedLevel, format.mintick)
+    labelText = 'RETEST ✓\n' + priceStr
+    
+    label.new(bar_index, low, labelText, 
               color = color(na), 
               style = label.style_label_up, 
               textcolor = retestColor, 
